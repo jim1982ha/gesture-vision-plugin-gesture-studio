@@ -1,0 +1,39 @@
+/* FILE: extensions/plugins/gesture-studio/frontend/landmark-selector.css */
+#landmark-selector-modal .modal-content {
+    width: clamp(320px, 90vw, 800px);
+    height: clamp(480px, 90svh, 800px);
+    /* Make the modal content a flex container to manage its children's layout */
+    display: flex;
+    flex-direction: column;
+}
+
+#landmark-selector-modal .modal-scrollable-content {
+    /* Allow this area to grow and fill available space */
+    flex-grow: 1;
+    min-height: 0; /* Critical for flex-grow to work correctly in all browsers */
+    display: flex; /* Make this a flex container as well */
+}
+
+#landmark-canvas-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--background);
+    overflow: hidden;
+    position: relative;
+}
+
+#landmark-selector-canvas {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    cursor: pointer;
+}
+
+.landmark-selector-controls {
+    display: flex;
+    gap: var(--space-sm);
+    margin-right: auto;
+}

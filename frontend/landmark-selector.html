@@ -1,0 +1,24 @@
+<!-- FILE: extensions/plugins/gesture-studio/frontend/landmark-selector.html -->
+<div id="landmark-selector-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-content">
+    <h3 class="modal-header">
+      <span class="material-icons header-icon">touch_app</span>
+      <span class="header-title" id="landmark-selector-title">Select Focus Points</span>
+      <button id="landmark-selector-close-btn" class="btn btn-icon header-close-btn">
+        <span class="mdi mdi-close"></span>
+      </button>
+    </h3>
+    <div class="modal-scrollable-content">
+      <div id="landmark-canvas-container">
+        <canvas id="landmark-selector-canvas"></canvas>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <div class="landmark-selector-controls">
+        <button id="landmark-select-all-btn" class="btn btn-secondary"></button>
+        <button id="landmark-deselect-all-btn" class="btn btn-secondary"></button>
+      </div>
+      <button id="landmark-confirm-selection-btn" class="btn btn-primary"></button>
+    </div>
+  </div>
+</div>

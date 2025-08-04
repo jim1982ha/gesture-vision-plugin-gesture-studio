@@ -1,0 +1,137 @@
+<!-- FILE: extensions/plugins/gesture-studio/frontend/studio-modal.html -->
+<div id="studio-shell" class="modal visible" role="dialog" aria-modal="true" aria-labelledby="studio-header-title-text">
+    <div class="modal-content">
+        <!-- Header -->
+        <h3 class="modal-header">
+            <span class="material-icons header-icon" id="studio-header-icon">gesture</span>
+            <span id="studio-header-title-text" class="header-title" data-translate-key="pluginStudioName">Gesture Studio</span>
+            <button id="close-studio-btn" class="btn btn-icon header-close-btn" data-translate-key-aria-label="close" aria-label="Close Gesture Studio">
+                <span class="mdi mdi-close"></span>
+            </button>
+        </h3>
+        
+        <!-- Scrollable Content Area -->
+        <div class="modal-scrollable-content">
+            <div id="studio-content-wrapper" class="studio-content-wrapper">
+                <!-- Video Column -->
+                <div id="studio-video-column" class="studio-video-column">
+                    <div id="studio-video-placeholder" class="studio-video-placeholder">
+                        <!-- Raw <video> and <canvas> will be moved here by JS -->
+                        <div id="live-test-display" class="live-test-display hidden">
+                            <div><span data-translate-key="studioLiveStatus">Status</span>: <strong id="live-detected-status"></strong></div>
+                            <div><span data-translate-key="studioLiveConfidence">Confidence</span>: <span id="live-confidence-value"></span></div>
+                            <div><span data-translate-key="studioRequiredConfidenceLabel">Required</span>: <span id="live-required-confidence-value"></span></div>
+                        </div>
+                        <div id="countdown-overlay" class="countdown-overlay hidden">
+                            <span id="countdown-overlay-text">3</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controls Column -->
+                <div id="studio-controls-column" class="studio-controls-column">
+                    <div class="workflow-card">
+                        <div class="card-header">
+                             <div class="card-title-actions-wrapper">
+                                <span id="studio-step-title" class="card-title" data-translate-key="studioStepDefineTitle">Define Gesture</span>
+                             </div>
+                        </div>
+                        <div class="card-details">
+                            <!-- Step 1: Define Gesture -->
+                            <section id="define-section">
+                                <div class="form-group">
+                                    <label id="label-gesture-name" for="gesture-name" data-translate-key="studioGestureName">Gesture Name</label>
+                                    <input type="text" id="gesture-name" class="form-control" data-translate-key-placeholder="studioGestureNamePlaceholder" placeholder="e.g., MyPinch, PointRight">
+                                </div>
+                                <div class="form-group">
+                                    <label id="label-gesture-description" for="gesture-description" data-translate-key="studioGestureDesc">Description</label>
+                                    <textarea id="gesture-description" class="form-control" rows="2" data-translate-key-placeholder="studioGestureDescPlaceholder" placeholder="Describe the gesture."></textarea>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label id="label-gesture-type" for="gesture-type" data-translate-key="studioGestureType">Type</label>
+                                        <div class="select-wrapper">
+                                            <select id="gesture-type" class="form-control">
+                                                <option id="option-gesture-type-hand" value="hand" data-translate-key="studioGestureTypeHand">Hand</option>
+                                                <option id="option-gesture-type-pose" value="pose" data-translate-key="studioGestureTypePose">Pose</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label id="label-samples-to-record" for="samples-to-record" data-translate-key="studioSamplesToRecord">Samples</label>
+                                        <input type="number" id="samples-to-record" class="form-control" value="3" min="3" max="10">
+                                    </div>
+                                </div>
+                                 <div class="form-group">
+                                    <label id="label-camera-source" for="studio-camera-select" data-translate-key="selectCameraSource">Camera Source</label>
+                                    <div class="select-wrapper">
+                                        <select id="studio-camera-select" class="form-control"></select>
+                                    </div>
+                                </div>
+                                <div class="form-actions-group justify-end" style="margin-top: auto;">
+                                    <button id="confirm-setup-start-camera-btn" class="btn btn-primary">
+                                        <span class="material-icons">camera_alt</span>
+                                        <span id="btn-text-confirm-setup" data-translate-key="studioConfirmAndStart">Confirm & Start Camera</span>
+                                    </button>
+                                </div>
+                            </section>
+
+                            <!-- Step 2: Record -->
+                            <section id="record-section" class="hidden">
+                                <p id="samples-counter-display">Samples: 0/3</p>
+                                <div id="samples-preview" class="samples-preview"></div>
+                                <div class="form-actions-group justify-space-between">
+                                    <button id="reset-samples-btn" class="btn btn-secondary">
+                                        <span class="material-icons">restart_alt</span>
+                                        <span id="btn-text-reset-samples" data-translate-key="studioResetSamples">Reset</span>
+                                    </button>
+                                    <button id="record-workflow-btn" class="btn btn-primary">
+                                        <span class="material-icons">radio_button_checked</span>
+                                        <span id="record-workflow-btn-text" data-translate-key="studioRecordSample">Record Sample</span>
+                                    </button>
+                                </div>
+                            </section>
+                            
+                            <!-- Step 3: Test & Refine -->
+                            <section id="test-section" class="hidden">
+                                <div class="form-group">
+                                    <label for="gestureToleranceSlider" id="label-gesture-tolerance" data-translate-key="studioToleranceLabel">Tolerance</label>
+                                    <div class="slider-group">
+                                        <output for="gestureToleranceSlider" id="gestureToleranceValue" class="slider-output">20%</output>
+                                        <div class="slider-container">
+                                            <input type="range" id="gestureToleranceSlider" class="form-slider" min="0" max="1" step="0.05" value="0.2">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <details id="analysis-details-container" class="details-accordion">
+                                    <summary class="details-summary"><span class="material-icons">psychology</span> <span data-translate-key="studioAnalysis">Analysis</span></summary>
+                                    <p id="analysis-status"></p>
+                                    <pre id="extracted-features-display" class="code-block-lookalike"></pre>
+                                </details>
+                                
+                                <details id="generated-code-details-container" class="details-accordion" open>
+                                    <summary class="details-summary"><span class="material-icons">code</span> <span data-translate-key="studioGeneratedJS">Generated Code</span></summary>
+                                    <div class="generated-code-container">
+                                        <textarea id="generated-code" class="form-control code-block-lookalike" rows="5" readonly></textarea>
+                                    </div>
+                                </details>
+
+                                <div id="test-controls-group" class="form-actions-group justify-space-between">
+                                    <button id="back-to-setup-btn" class="btn btn-secondary">
+                                        <span class="material-icons">arrow_back</span>
+                                        <span id="btn-text-back-to-setup" data-translate-key="studioStartOver">Start Over</span>
+                                    </button>
+                                    <button id="save-gesture-btn" class="btn btn-primary">
+                                        <span class="material-icons">save</span>
+                                        <span id="btn-text-save-gesture" data-translate-key="studioSaveGesture">Save Gesture</span>
+                                    </button>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
