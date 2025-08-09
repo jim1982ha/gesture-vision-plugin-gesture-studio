@@ -1,15 +1,21 @@
-/* FILE: extensions/plugins/gesture-studio/frontend/ui-interactions.js */
+/* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/ui-interactions.js */
 import { UIElements } from './ui-elements.js';
 
 let toastTimeoutId = null;
 
-export function getSetupData() {
+export function getSetupData(translate) {
     const samplesInput = UIElements.samplesToRecordInput;
     let samplesToRecord = 3;
     if (samplesInput && samplesInput.value) {
         const val = parseInt(samplesInput.value, 10);
-        if (!isNaN(val) && val >= 3 && val <= 10) samplesToRecord = val;
-        else samplesInput.value = "3";
+        if (!isNaN(val) && val >= 3 && val <= 10) {
+            samplesToRecord = val;
+        } else {
+            samplesInput.value = "3";
+            // NOTE: showToastNotification is called here, but it's a simple function
+            // with no dependencies on context, so this is okay.
+            showToastNotification(translate('toastInvalidSampleCount'), true);
+        }
     }
     return {
         name: UIElements.gestureNameInput?.value.trim() || "MyCustomGesture",
@@ -32,14 +38,8 @@ export function updateSamplesDisplay(samples, onSampleClick) {
         }
 
         const ctx = canvas.getContext("2d");
-        if (ctx && sample.imageData) {
-            const tempCanvas = document.createElement("canvas");
-            tempCanvas.width = sample.imageData.width; tempCanvas.height = sample.imageData.height;
-            const tempCtx = tempCanvas.getContext("2d");
-            if (tempCtx) {
-                tempCtx.putImageData(sample.imageData, 0, 0);
-                ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
-            }
+        if (ctx && sample.imageData instanceof ImageBitmap) {
+            ctx.drawImage(sample.imageData, 0, 0, canvas.width, canvas.height);
         }
         UIElements.samplesPreview.appendChild(canvas);
     });
@@ -65,7 +65,7 @@ export function updateLiveConfidenceDisplay(result, translate) {
         UIElements.liveConfidenceValue.textContent = (result?.confidence != null) ? `${(result.confidence * 100).toFixed(1)}%` : "-";
     }
     if (UIElements.liveRequiredConfidenceValue) {
-        const requiredConfidence = result?.requiredConfidence ?? 0.1; // Default to the worker's minimum
+        const requiredConfidence = result?.requiredConfidence ?? 0.1;
         UIElements.liveRequiredConfidenceValue.textContent = `> ${(requiredConfidence * 100).toFixed(1)}%`;
     }
 }

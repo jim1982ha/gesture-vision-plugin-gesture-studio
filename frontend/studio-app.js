@@ -1,4 +1,4 @@
-/* FILE: extensions/plugins/gesture-studio/frontend/studio-app.js */
+/* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/studio-app.js */
 import { updateUIState } from "./ui-state-definitions.js";
 import {
   getSetupData,
@@ -14,13 +14,6 @@ import { StudioCameraManager } from "./logic/studio-camera-manager.js";
 import { StudioSessionManager } from "./logic/studio-session-manager.js";
 import { StudioLiveTester } from "./logic/studio-live-tester.js";
 
-const {
-  CAMERA_SOURCE_EVENTS,
-  UI_EVENTS,
-  GESTURE_EVENTS,
-  WEBSOCKET_EVENTS,
-} = window.GestureVision.shared.constants;
-
 const CAPTURE_COUNTDOWN_SECONDS = 1;
 
 class StudioController {
@@ -31,6 +24,7 @@ class StudioController {
   #landmarkSelector = null;
   #canvasRendererRef = null;
   #modalContainer = null;
+  #manifest = null;
 
   #currentStudioState = "initial_define_record";
   #studioContext = null;
@@ -41,8 +35,9 @@ class StudioController {
   #appStore = null;
   #translate = null;
   #pubsub = null;
+  #setIcon = null;
 
-  constructor(context, modalContainer) {
+  constructor(context, modalContainer, manifest) {
     if (!context?.cameraService || !context.coreStateManager || !context.gesture) {
       throw new Error("[GestureStudio] Critical services not provided in context.");
     }
@@ -50,15 +45,17 @@ class StudioController {
     this.#appStore = context.coreStateManager;
     this.#translate = context.services.translate;
     this.#pubsub = context.services.pubsub;
+    this.#setIcon = context.uiComponents.setIcon;
+    this.#manifest = manifest;
     
     this.#modalContainer = modalContainer;
-    this.#cameraManager = new StudioCameraManager(context.cameraService);
+    this.#cameraManager = new StudioCameraManager(context);
     this.#canvasRendererRef = context.cameraService?.getWebcamManager()?.getCanvasRenderer() || null;
     
     this.#initializeUI(modalContainer);
     this.#attachEventListeners();
     this.applyStudioTranslations();
-    this.#pubsub.publish(UI_EVENTS.REQUEST_CAMERA_LIST_RENDER);
+    this.#pubsub.publish(this.#studioContext.shared.constants.UI_EVENTS.REQUEST_CAMERA_LIST_RENDER);
   }
 
   #initializeUI(modalContainer) {
@@ -68,7 +65,7 @@ class StudioController {
       else if (id) UIElements[key] = document.getElementById(id);
     }
     if (UIElements.studioShell) UIElements.studioShell.style.visibility = "visible";
-    updateUIState("initial_define_record", { translate: this.#translate });
+    updateUIState("initial_define_record", { translate: this.#translate, setIcon: this.#setIcon });
   }
 
   #attachEventListeners = () => {
@@ -85,6 +82,8 @@ class StudioController {
       this.#updateToleranceOutput(parseFloat(toleranceSlider.value));
     }
     
+    const { CAMERA_SOURCE_EVENTS, WEBSOCKET_EVENTS, GESTURE_EVENTS } = this.#studioContext.shared.constants;
+    
     this.#activeSubscriptions = [
       this.#pubsub.subscribe(CAMERA_SOURCE_EVENTS.MAP_UPDATED, this.renderCameraList),
       this.#pubsub.subscribe(WEBSOCKET_EVENTS.BACKEND_UPLOAD_CUSTOM_GESTURE_ACK, this.handleUploadAck),
@@ -99,7 +98,7 @@ class StudioController {
 
   #updateUIAndSetState = (newState, payload = {}) => {
     this.#currentStudioState = newState;
-    updateUIState(newState, { ...payload, translate: this.#translate });
+    updateUIState(newState, { ...payload, translate: this.#translate, setIcon: this.#setIcon });
   };
 
   handleSetupCompleteAndStartCamera = () => {
@@ -147,7 +146,7 @@ class StudioController {
     this.#updateUIAndSetState("capturing_sample", { countdownValue: "...", isProcessing: true });
     
     try {
-      const snapshot = await this.#studioContext.cameraService.getLandmarkSnapshot(this.#currentSetupData.type);
+      const snapshot = await this.#studioContext.cameraService.getLandmarkSnapshot();
       if (snapshot?.landmarks?.length && snapshot.imageData) this.#sessionManager.addSample(snapshot);
       else showToastNotification(this.#translate(snapshot?.imageData ? "toastSampleCaptureFailedNoLandmarks" : "toastSampleCaptureFailedGeneric"), true);
     } catch (e) {
@@ -243,7 +242,7 @@ class StudioController {
     this.#initializeUI(this.#modalContainer);
     this.#updateUIAndSetState("initial_define_record");
     this.applyStudioTranslations(); 
-    this.#pubsub.publish(UI_EVENTS.REQUEST_CAMERA_LIST_RENDER);
+    this.#pubsub.publish(this.#studioContext.shared.constants.UI_EVENTS.REQUEST_CAMERA_LIST_RENDER);
   };
 
   handleWorkflowAction = () => {
@@ -259,7 +258,7 @@ class StudioController {
     const sample = this.#sessionManager.getSamples()[sampleIndex];
     if (!sample) return;
     if (!this.#landmarkSelector) {
-      const response = await fetch("/api/plugins/assets/gesture-studio/frontend/landmark-selector.html");
+      const response = await fetch(`/api/plugins/assets/${this.#manifest.id}/frontend/landmark-selector.html`);
       const html = await response.text();
       const container = document.createElement("div");
       container.innerHTML = html;
@@ -269,6 +268,7 @@ class StudioController {
         onConfirm: (indices) => this.#sessionManager.setSelectedLandmarkIndices(indices),
         onCancel: () => {},
         translate: this.#translate,
+        setIcon: this.#setIcon
       });
     }
     this.#landmarkSelector.show(sample, this.#sessionManager.getSelectedLandmarkIndices());
@@ -276,10 +276,10 @@ class StudioController {
   
   handleUploadAck = (payload) => {
     if (payload?.source !== "studio") return;
+    const { UI_EVENTS } = this.#studioContext.shared.constants;
     if (payload.success) {
       this.#pubsub.publish(UI_EVENTS.SHOW_NOTIFICATION, { messageKey: 'customGestureSaveSuccess', substitutions: { name: payload.newDefinition?.name || '?' }, type: 'success' });
       
-      // FIX: Automatically enable the relevant feature toggle after a successful save.
       const newGestureType = payload.newDefinition?.type;
       if (newGestureType === 'hand') {
         this.#appStore.getState().actions.requestBackendPatch({ enableCustomHandGestures: true });
@@ -351,7 +351,7 @@ class StudioController {
 
 let currentStudioInstance = null;
 
-export function initializeStudioUI(context, modalContainer) {
+export function initializeStudioUI(context, modalContainer, manifest) {
   if (currentStudioInstance) currentStudioInstance.closeStudio().catch(console.error);
-  currentStudioInstance = new StudioController(context, modalContainer);
+  currentStudioInstance = new StudioController(context, modalContainer, manifest);
 }

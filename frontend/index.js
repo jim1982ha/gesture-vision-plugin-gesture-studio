@@ -1,19 +1,21 @@
-/* FILE: extensions/plugins/gesture-studio/frontend/index.js */
+/* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/index.js */
 import { initializeStudioUI } from './studio-app.js';
 
 // Access core functionalities from the passed context object
-function launchModal(context) {
-  const { pubsub, globalSettingsModalManager } = context;
+function launchModal(context, manifest) {
+  const { services } = context;
+  const { pubsub, translate } = services;
+  const { globalSettingsModalManager } = context;
 
   if (!globalSettingsModalManager) {
     console.error("[GestureStudio] Cannot launch, GlobalSettingsModalManager not found in context.");
-    pubsub.publish('ui:showError', { message: `Error: Could not open Gesture Studio.` });
+    pubsub.publish('ui:showError', { message: translate('errorGeneric', { message: `Could not open Gesture Studio.` }) });
     return;
   }
   
   globalSettingsModalManager.closeModal();
 
-  fetch('/api/plugins/assets/gesture-studio/frontend/studio-modal.html')
+  fetch(`/api/plugins/assets/${manifest.id}/frontend/studio-modal.html`)
     .then(response => {
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         return response.text();
@@ -26,27 +28,25 @@ function launchModal(context) {
 
       if (studioModalElement && studioModalElement.id === 'studio-shell') {
         document.body.appendChild(studioModalElement);
-        initializeStudioUI(context, studioModalElement);
+        initializeStudioUI(context, studioModalElement, manifest);
       } else {
         throw new Error("Failed to parse studio-modal.html: #studio-shell not found");
       }
     })
     .catch(error => {
       console.error('Failed to load or initialize gesture studio:', error);
-      pubsub.publish('ui:showError', { message: `Error: Could not open Gesture Studio.` });
+      pubsub.publish('ui:showError', { message: translate('errorGeneric', { message: 'Could not open Gesture Studio.' }) });
     });
 }
 
 const gestureStudioPlugin = {
-  manifest: { /* Injected by PluginUIService */ },
-  
   async init(context) {
     if (document.getElementById('create-new-gesture-studio-btn')) {
         console.warn('[GestureStudio Plugin] "Create New..." button already exists. Skipping re-creation.');
         return;
     }
     
-    const { coreStateManager: appStore, services, uiComponents } = context;
+    const { coreStateManager: appStore, services, uiComponents, manifest } = context;
     const { translate } = services;
     const { setIcon } = uiComponents;
     
@@ -77,10 +77,11 @@ const gestureStudioPlugin = {
     });
 
     createBtn.addEventListener('click', () => {
-        launchModal(context);
+        // FIX: Pass the manifest from the context into the launch function.
+        launchModal(context, manifest);
     });
     
-    context.pluginUIService.registerContribution('custom-gestures-actions', createBtn, this.manifest.id);
+    context.pluginUIService.registerContribution('custom-gestures-actions', createBtn, manifest.id);
   }
 };
 

@@ -1,6 +1,5 @@
-/* FILE: extensions/plugins/gesture-studio/frontend/ui-state-definitions.js */
+/* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/ui-state-definitions.js */
 import { UIElements } from "./ui-elements.js";
-const { setIcon } = window.GestureVision.ui.components;
 
 function setElementVisibility(element, isVisible) {
   if (!element) return;
@@ -53,9 +52,9 @@ export function updateUIState(state, payload = {}) {
     liveTestDisplay,
   } = UIElements;
   
-  const translate = payload.translate;
-  if (!translate) {
-      console.warn("[updateUIState] translate function not provided in payload. UI text may not update.");
+  const { translate, setIcon } = payload;
+  if (!translate || !setIcon) {
+      console.warn("[updateUIState] translate or setIcon function not provided in payload. UI may not update.");
       return;
   }
 
@@ -119,7 +118,7 @@ export function updateUIState(state, payload = {}) {
 
     case "saving":
     case "testing_gesture":
-      { // FIX: Added block scope for lexical declaration
+      {
         setElementVisibility(testSection, true);
         setElementVisibility(liveTestDisplay, true);
         stepTitleKey = "studioStepTestTitle";

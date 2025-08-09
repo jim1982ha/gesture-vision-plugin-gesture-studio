@@ -1,6 +1,4 @@
-/* FILE: extensions/plugins/gesture-studio/frontend/landmark-selector.js */
-const { setIcon } = window.GestureVision.ui.components;
-
+/* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/landmark-selector.js */
 const LANDMARK_RADIUS = 5;
 const COLORS = {
   default: "rgba(0, 119, 182, 0.7)",
@@ -18,8 +16,9 @@ export class LandmarkSelector {
   #selectedIndices = new Set();
   #hoveredIndex = -1;
   #translate;
+  #setIcon;
 
-  constructor({ modalElement, onConfirm, onCancel, translate }) {
+  constructor({ modalElement, onConfirm, onCancel, translate, setIcon }) {
     this.#modalElement = modalElement;
     this.#canvas = this.#modalElement.querySelector(
       "#landmark-selector-canvas"
@@ -28,6 +27,7 @@ export class LandmarkSelector {
     this.#onConfirm = onConfirm;
     this.#onCancel = onCancel;
     this.#translate = translate;
+    this.#setIcon = setIcon;
     this.#attachEventListeners();
     this.#applyTranslations();
   }
@@ -53,12 +53,10 @@ export class LandmarkSelector {
     this.#currentSample = sample;
     this.#selectedIndices = new Set(initialSelection);
 
-    // First, make the modal visible so its dimensions are calculated by the browser.
     this.#modalElement.classList.remove("hidden");
     this.#modalElement.classList.add("visible");
     document.body.classList.add("modal-open");
 
-    // Then, defer the drawing until the next paint cycle.
     requestAnimationFrame(() => {
       this.#draw();
     });
@@ -71,7 +69,7 @@ export class LandmarkSelector {
     if (this.#onCancel) this.#onCancel();
   }
 
-  #draw = async () => {
+  #draw = () => {
     if (!this.#currentSample || !this.#ctx) return;
     const { imageData, landmarks } = this.#currentSample;
     const canvas = this.#canvas;
@@ -91,11 +89,10 @@ export class LandmarkSelector {
     this.#ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     try {
-      const imageBitmap = await createImageBitmap(imageData);
-      this.#ctx.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
+      this.#ctx.drawImage(imageData, 0, 0, canvas.width, canvas.height);
     } catch (e) {
-      console.error("Error creating or drawing ImageBitmap:", e);
-      return; // Stop drawing if the base image fails
+      console.error("Error drawing ImageBitmap:", e);
+      return;
     }
 
     landmarks.forEach((lm, index) => {
@@ -176,8 +173,8 @@ export class LandmarkSelector {
       this.#translate("deselectAll");
     el.querySelector("#landmark-confirm-selection-btn").textContent =
       this.#translate("confirmSelection");
-    setIcon(el.querySelector("#landmark-select-all-btn"), "UI_CHECK_CIRCLE");
-    setIcon(el.querySelector("#landmark-deselect-all-btn"), "UI_HIGHLIGHT_OFF");
-    setIcon(el.querySelector("#landmark-confirm-selection-btn"), "UI_CONFIRM");
+    this.#setIcon(el.querySelector("#landmark-select-all-btn"), "UI_CHECK_CIRCLE");
+    this.#setIcon(el.querySelector("#landmark-deselect-all-btn"), "UI_HIGHLIGHT_OFF");
+    this.#setIcon(el.querySelector("#landmark-confirm-selection-btn"), "UI_CONFIRM");
   }
 }

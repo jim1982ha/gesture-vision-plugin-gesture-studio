@@ -2,7 +2,7 @@
     "id": "gesture-vision-plugin-gesture-studio",
     "nameKey": "pluginStudioName",
     "descriptionKey": "pluginStudioDescription",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "author": "GestureVision Team",
     "icon": {
         "type": "material-icons",

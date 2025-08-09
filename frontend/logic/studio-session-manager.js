@@ -1,4 +1,4 @@
-/* FILE: extensions/plugins/gesture-studio/frontend/logic/studio-session-manager.js */
+/* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/logic/studio-session-manager.js */
 import { GestureRecorder } from "../gesture-recorder.js";
 import { FeatureExtractor } from "./feature-extractor.js";
 import { showToastNotification } from "../ui-interactions.js";

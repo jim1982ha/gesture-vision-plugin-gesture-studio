@@ -1,4 +1,9 @@
-/* FILE: extensions/plugins/gesture-studio/frontend/landmark-selector.css */
+/* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/landmark-selector.css */
+#landmark-selector-modal {
+    /* FIX: Ensure this modal appears on top of the main studio modal */
+    z-index: var(--z-sub-modal-overlay);
+}
+
 #landmark-selector-modal .modal-content {
     width: clamp(320px, 90vw, 800px);
     height: clamp(480px, 90svh, 800px);

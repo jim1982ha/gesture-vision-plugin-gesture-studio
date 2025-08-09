@@ -1,6 +1,4 @@
-/* FILE: extensions/plugins/gesture-studio/frontend/logic/studio-camera-manager.js */
-const { pubsub } = window.GestureVision.services;
-const { GESTURE_EVENTS, UI_EVENTS } = window.GestureVision.shared.constants;
+/* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/logic/studio-camera-manager.js */
 import { UIElements } from "../ui-elements.js";
 
 /**
@@ -8,12 +6,15 @@ import { UIElements } from "../ui-elements.js";
  */
 export class StudioCameraManager {
   #cameraServiceInstance;
+  #isVideoContainerBorrowed = false;
+  #context;
 
-  constructor(cameraService) {
-    if (!cameraService) {
-      throw new Error("StudioCameraManager requires a valid CameraService instance.");
+  constructor(context) {
+    if (!context || !context.cameraService) {
+      throw new Error("StudioCameraManager requires a valid context with a CameraService instance.");
     }
-    this.#cameraServiceInstance = cameraService;
+    this.#context = context;
+    this.#cameraServiceInstance = context.cameraService;
   }
 
   /**
@@ -27,16 +28,17 @@ export class StudioCameraManager {
       throw new Error("Camera service or setup data not available.");
     }
     
+    const { GESTURE_EVENTS, UI_EVENTS } = this.#context.shared.constants;
+    
     const overridePayload = setupData.type === 'hand' 
         ? { hand: true, pose: false } 
         : { hand: false, pose: true };
-    pubsub.publish(GESTURE_EVENTS.REQUEST_LANDMARK_VISIBILITY_OVERRIDE, overridePayload);
+    this.#context.services.pubsub.publish(GESTURE_EVENTS.REQUEST_LANDMARK_VISIBILITY_OVERRIDE, overridePayload);
     
-    // Reparent the main video container into the studio's placeholder
-    pubsub.publish(UI_EVENTS.REQUEST_VIDEO_REPARENT, { placeholderElement: UIElements.studioVideoPlaceholder });
+    this.#context.services.pubsub.publish(UI_EVENTS.REQUEST_VIDEO_REPARENT, { placeholderElement: UIElements.studioVideoPlaceholder });
+    this.#isVideoContainerBorrowed = true;
 
-    // Hide the main UI's overlay so the video feed is visible inside the studio
-    pubsub.publish(UI_EVENTS.REQUEST_OVERLAY_STATE, "hidden");
+    this.#context.services.pubsub.publish(UI_EVENTS.REQUEST_OVERLAY_STATE, "hidden");
 
     await this.#cameraServiceInstance.startStream({
       gestureType: setupData.type,
@@ -49,15 +51,17 @@ export class StudioCameraManager {
    * @returns {Promise<void>}
    */
   async stopAndRestore() {
-    pubsub.publish(GESTURE_EVENTS.CLEAR_LANDMARK_VISIBILITY_OVERRIDE);
+    const { GESTURE_EVENTS, UI_EVENTS } = this.#context.shared.constants;
+    this.#context.services.pubsub.publish(GESTURE_EVENTS.CLEAR_LANDMARK_VISIBILITY_OVERRIDE);
     if (this.#cameraServiceInstance?.isStreamActive()) {
       await this.#cameraServiceInstance.stopStream();
     }
     
-    // Release the video container back to its original parent
-    pubsub.publish(UI_EVENTS.REQUEST_VIDEO_REPARENT, { release: true });
+    if (this.#isVideoContainerBorrowed) {
+      this.#context.services.pubsub.publish(UI_EVENTS.REQUEST_VIDEO_REPARENT, { release: true });
+      this.#isVideoContainerBorrowed = false;
+    }
     
-    // Restore the main UI's overlay to its default idle state
-    pubsub.publish(UI_EVENTS.REQUEST_OVERLAY_STATE, "OFFLINE_IDLE");
+    this.#context.services.pubsub.publish(UI_EVENTS.REQUEST_OVERLAY_STATE, "OFFLINE_IDLE");
   }
 }
