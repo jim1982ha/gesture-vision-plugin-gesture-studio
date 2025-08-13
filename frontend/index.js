@@ -1,5 +1,5 @@
 /* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/index.js */
-import { initializeStudioUI } from './studio-app.js';
+// The static import is removed. Code will be loaded dynamically on demand.
 
 // Access core functionalities from the passed context object
 function launchModal(context, manifest) {
@@ -15,27 +15,36 @@ function launchModal(context, manifest) {
   
   globalSettingsModalManager.closeModal();
 
-  fetch(`/api/plugins/assets/${manifest.id}/frontend/studio-modal.html`)
-    .then(response => {
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        return response.text();
-    })
-    .then(html => {
-      const tempContainer = document.createElement('div');
-      tempContainer.innerHTML = html.trim();
-      
-      const studioModalElement = tempContainer.firstElementChild;
+  // Dynamically import the studio-app module
+  import('./studio-app.js')
+    .then(({ initializeStudioUI }) => {
+      fetch(`/api/plugins/assets/${manifest.id}/frontend/studio-modal.html`)
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return response.text();
+        })
+        .then(html => {
+          const tempContainer = document.createElement('div');
+          tempContainer.innerHTML = html.trim();
+          
+          const studioModalElement = tempContainer.firstElementChild;
 
-      if (studioModalElement && studioModalElement.id === 'studio-shell') {
-        document.body.appendChild(studioModalElement);
-        initializeStudioUI(context, studioModalElement, manifest);
-      } else {
-        throw new Error("Failed to parse studio-modal.html: #studio-shell not found");
-      }
+          if (studioModalElement && studioModalElement.id === 'studio-shell') {
+            document.body.appendChild(studioModalElement);
+            // Call the imported function only after the module is loaded
+            initializeStudioUI(context, studioModalElement, manifest);
+          } else {
+            throw new Error("Failed to parse studio-modal.html: #studio-shell not found");
+          }
+        })
+        .catch(error => {
+          console.error('Failed to load gesture studio assets or initialize:', error);
+          pubsub.publish('ui:showError', { message: translate('errorGeneric', { message: 'Could not open Gesture Studio.' }) });
+        });
     })
     .catch(error => {
-      console.error('Failed to load or initialize gesture studio:', error);
-      pubsub.publish('ui:showError', { message: translate('errorGeneric', { message: 'Could not open Gesture Studio.' }) });
+      console.error('Failed to dynamically load gesture studio module:', error);
+      pubsub.publish('ui:showError', { message: translate('errorGeneric', { message: 'Could not load Gesture Studio module.' }) });
     });
 }
 
@@ -77,7 +86,6 @@ const gestureStudioPlugin = {
     });
 
     createBtn.addEventListener('click', () => {
-        // FIX: Pass the manifest from the context into the launch function.
         launchModal(context, manifest);
     });
     
