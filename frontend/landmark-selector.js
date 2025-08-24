@@ -167,14 +167,24 @@ export class LandmarkSelector {
     el.querySelector("#landmark-selector-title").textContent = this.#translate(
       "landmarkSelectorTitle"
     );
-    el.querySelector("#landmark-select-all-btn").textContent =
-      this.#translate("selectAll");
-    el.querySelector("#landmark-deselect-all-btn").textContent =
-      this.#translate("deselectAll");
-    el.querySelector("#landmark-confirm-selection-btn").textContent =
-      this.#translate("confirmSelection");
-    this.#setIcon(el.querySelector("#landmark-select-all-btn"), "UI_CHECK_CIRCLE");
-    this.#setIcon(el.querySelector("#landmark-deselect-all-btn"), "UI_HIGHLIGHT_OFF");
-    this.#setIcon(el.querySelector("#landmark-confirm-selection-btn"), "UI_CONFIRM");
+
+    const setupButton = (buttonId, iconKey, textKey) => {
+        const button = el.querySelector(`#${buttonId}`);
+        if (!button) return;
+        button.innerHTML = ''; 
+
+        const iconSpan = document.createElement('span');
+        this.#setIcon(iconSpan, iconKey);
+
+        const textSpan = document.createElement('span');
+        textSpan.textContent = this.#translate(textKey);
+
+        button.appendChild(iconSpan);
+        button.appendChild(textSpan);
+    };
+
+    setupButton("landmark-select-all-btn", "UI_CHECK_CIRCLE", "selectAll");
+    setupButton("landmark-deselect-all-btn", "UI_HIGHLIGHT_OFF", "deselectAll");
+    setupButton("landmark-confirm-selection-btn", "UI_CONFIRM", "confirmSelection");
   }
 }
