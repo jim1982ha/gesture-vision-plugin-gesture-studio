@@ -5,7 +5,7 @@ A tool to create custom hand and pose gestures.
 ---
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/your-repo/gesture-vision-app/main/path/to/icon.png" width="80" alt="Gesture Studio Plugin Icon">
+  <img src="https://raw.githubusercontent.com/jim1982ha/gesture-vision/main/packages/frontend/public/icons/icon-72.webp" width="80" alt="Gesture Studio Plugin Icon">
 </p>
 <h1 align="center">GestureVision - Gesture Studio Plugin</h1>
 <p align="center">
