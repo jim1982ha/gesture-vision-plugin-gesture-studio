@@ -18,7 +18,7 @@
   "studioResetSamples": "Réinitialiser",
   "studioRecordSample": "Capture ({{count}}/{{needed}})",
   "studioCaptureSample": "Enregistrement ({{countdown}}s)",
-  "studioAnalyzeAndGenerate": "Analyser & Générer",
+  "studioAnalyzeAndGenerate": "Générer",
   "studioSamplesLabel": "Échantillons: {{captured}}/{{needed}}",
   "studioSaveGesture": "Sauvegarder Geste",
   "studioStartOver": "Recommencer",

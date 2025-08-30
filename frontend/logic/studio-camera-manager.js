@@ -30,18 +30,30 @@ export class StudioCameraManager {
     
     const { GESTURE_EVENTS, UI_EVENTS } = this.#context.shared.constants;
     
-    const overridePayload = setupData.type === 'hand' 
-        ? { hand: true, pose: false } 
-        : { hand: false, pose: true };
-    this.#context.services.pubsub.publish(GESTURE_EVENTS.REQUEST_LANDMARK_VISIBILITY_OVERRIDE, overridePayload);
+    const isHandGesture = setupData.type === 'hand';
+    
+    const visibilityOverridePayload = { hand: isHandGesture, pose: !isHandGesture };
+    this.#context.services.pubsub.publish(GESTURE_EVENTS.REQUEST_LANDMARK_VISIBILITY_OVERRIDE, visibilityOverridePayload);
+
+    const processingOverridePayload = {
+        hand: isHandGesture,
+        pose: !isHandGesture,
+        numHands: 1,
+        builtIn: isHandGesture, // Enable built-in gestures for hand recording
+        custom: true, // Always enable custom for studio context
+    };
+    this.#context.services.pubsub.publish(GESTURE_EVENTS.REQUEST_PROCESSING_OVERRIDE, processingOverridePayload);
     
     this.#context.services.pubsub.publish(UI_EVENTS.REQUEST_VIDEO_REPARENT, { placeholderElement: UIElements.studioVideoPlaceholder });
     this.#isVideoContainerBorrowed = true;
 
     this.#context.services.pubsub.publish(UI_EVENTS.REQUEST_OVERLAY_STATE, "hidden");
 
+    if (!this.#context.uiController.sidebarManager.isMobile) {
+        this.#context.uiController.layoutManager.setVideoSizeConstrained(false);
+    }
+
     await this.#cameraServiceInstance.startStream({
-      gestureType: setupData.type,
       cameraId: setupData.cameraId,
     });
   }
@@ -53,6 +65,7 @@ export class StudioCameraManager {
   async stopAndRestore() {
     const { GESTURE_EVENTS, UI_EVENTS } = this.#context.shared.constants;
     this.#context.services.pubsub.publish(GESTURE_EVENTS.CLEAR_LANDMARK_VISIBILITY_OVERRIDE);
+    this.#context.services.pubsub.publish(GESTURE_EVENTS.CLEAR_PROCESSING_OVERRIDE);
     if (this.#cameraServiceInstance?.isStreamActive()) {
       await this.#cameraServiceInstance.stopStream();
     }
@@ -62,6 +75,10 @@ export class StudioCameraManager {
       this.#isVideoContainerBorrowed = false;
     }
     
+    if (!this.#context.uiController.sidebarManager.isMobile) {
+        this.#context.uiController.layoutManager.setVideoSizeConstrained(true);
+    }
+
     this.#context.services.pubsub.publish(UI_EVENTS.REQUEST_OVERLAY_STATE, "OFFLINE_IDLE");
   }
 }

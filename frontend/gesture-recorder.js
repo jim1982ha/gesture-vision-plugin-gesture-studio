@@ -23,20 +23,19 @@ export class GestureRecorder {
       !snapshot ||
       !Array.isArray(snapshot.landmarks) ||
       snapshot.landmarks.length === 0 ||
-      !(imageSource instanceof ImageBitmap)
+      !(imageSource instanceof ImageData)
     ) {
       console.warn(
-        "[GestureRecorder] Attempted to add invalid sample (missing landmarks or valid ImageBitmap). Sample rejected.",
+        "[GestureRecorder] Attempted to add invalid sample (missing landmarks or valid ImageData). Sample rejected.",
         snapshot
       );
-      if (imageSource instanceof ImageBitmap) imageSource.close();
       return false;
     }
 
     this.#samples.push({
       type: this.#gestureType,
       landmarks: snapshot.landmarks,
-      imageData: imageSource, // This is an ImageBitmap
+      imageData: imageSource, // This is an ImageData object
     });
     
     return true;
@@ -49,7 +48,6 @@ export class GestureRecorder {
     return this.#samples.length >= this.#samplesNeeded;
   }
   reset() {
-    this.#samples.forEach(s => s.imageData?.close());
     this.#samples = [];
   }
 }

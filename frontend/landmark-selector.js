@@ -47,6 +47,7 @@ export class LandmarkSelector {
       ?.addEventListener("click", this.#deselectAll);
     this.#canvas.addEventListener("mousemove", this.#handleMouseMove);
     this.#canvas.addEventListener("click", this.#handleClick);
+    this.#setIcon(this.#modalElement.querySelector("#landmark-selector-close-btn"), 'UI_CLOSE');
   }
 
   show(sample, initialSelection) {
@@ -69,7 +70,7 @@ export class LandmarkSelector {
     if (this.#onCancel) this.#onCancel();
   }
 
-  #draw = () => {
+  #draw = async () => {
     if (!this.#currentSample || !this.#ctx) return;
     const { imageData, landmarks } = this.#currentSample;
     const canvas = this.#canvas;
@@ -89,9 +90,11 @@ export class LandmarkSelector {
     this.#ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     try {
-      this.#ctx.drawImage(imageData, 0, 0, canvas.width, canvas.height);
+      const imageBitmap = await createImageBitmap(imageData);
+      this.#ctx.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
+      imageBitmap.close();
     } catch (e) {
-      console.error("Error drawing ImageBitmap:", e);
+      console.error("Error drawing ImageData:", e);
       return;
     }
 

@@ -38,8 +38,15 @@ export function updateSamplesDisplay(samples, onSampleClick) {
         }
 
         const ctx = canvas.getContext("2d");
-        if (ctx && sample.imageData instanceof ImageBitmap) {
-            ctx.drawImage(sample.imageData, 0, 0, canvas.width, canvas.height);
+        if (ctx && sample.imageData instanceof ImageData) {
+            const tempCanvas = document.createElement("canvas");
+            tempCanvas.width = sample.imageData.width;
+            tempCanvas.height = sample.imageData.height;
+            const tempCtx = tempCanvas.getContext("2d");
+            if (tempCtx) {
+                tempCtx.putImageData(sample.imageData, 0, 0);
+                ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+            }
         }
         UIElements.samplesPreview.appendChild(canvas);
     });

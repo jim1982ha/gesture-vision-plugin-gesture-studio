@@ -18,7 +18,7 @@
   "studioResetSamples": "重置样本",
   "studioRecordSample": "录制样本 ({{count}}/{{needed}})",
   "studioCaptureSample": "正在录制 ({{countdown}}秒)",
-  "studioAnalyzeAndGenerate": "分析并生成",
+  "studioAnalyzeAndGenerate": "生成",
   "studioSamplesLabel": "样本: {{captured}}/{{needed}}",
   "studioSaveGesture": "保存手势",
   "studioStartOver": "重新开始",

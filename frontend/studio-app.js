@@ -50,7 +50,7 @@ class StudioController {
     
     this.#modalContainer = modalContainer;
     this.#cameraManager = new StudioCameraManager(context);
-    this.#canvasRendererRef = context.cameraService?.getWebcamManager()?.getCanvasRenderer() || null;
+    this.#canvasRendererRef = context.cameraService?.getCameraManager()?.getCanvasRenderer() || null;
     
     this.#initializeUI(modalContainer);
     this.#attachEventListeners();
@@ -65,6 +65,7 @@ class StudioController {
       else if (id) UIElements[key] = document.getElementById(id);
     }
     if (UIElements.studioShell) UIElements.studioShell.style.visibility = "visible";
+    this.#setIcon(UIElements.closeStudioBtn, 'UI_CLOSE');
     updateUIState("initial_define_record", { translate: this.#translate, setIcon: this.#setIcon });
   }
 
@@ -75,6 +76,7 @@ class StudioController {
     UIElements.resetSamplesBtn?.addEventListener("click", this.handleResetSamples);
     UIElements.saveGestureBtn?.addEventListener("click", this.handleSaveGesture);
     UIElements.backToSetupBtn?.addEventListener("click", this.handleBackToSetup);
+    UIElements.backToSetupBtnFromRecord?.addEventListener("click", this.handleBackToSetup);
     
     const toleranceSlider = document.getElementById("gestureToleranceSlider");
     if (toleranceSlider) {
@@ -230,19 +232,16 @@ class StudioController {
 
   handleBackToSetup = async () => {
     await this.#cameraManager.stopAndRestore();
-    this.destroy();
+    this.#liveTester?.stop();
+    this.#canvasRendererRef?.setFocusPointsForDrawing(null);
 
     if (UIElements.samplesPreview) UIElements.samplesPreview.innerHTML = '';
     if (UIElements.generatedCodeTextarea) UIElements.generatedCodeTextarea.value = '';
     if (UIElements.extractedFeaturesDisplay) UIElements.extractedFeaturesDisplay.textContent = '';
-    if (UIElements.gestureNameInput) UIElements.gestureNameInput.value = '';
-    if (UIElements.gestureDescriptionInput) UIElements.gestureDescriptionInput.value = '';
-    if (UIElements.samplesToRecordInput) UIElements.samplesToRecordInput.value = '3';
     
-    this.#initializeUI(this.#modalContainer);
+    this.#sessionManager = null;
+    
     this.#updateUIAndSetState("initial_define_record");
-    this.applyStudioTranslations(); 
-    this.#pubsub.publish(this.#studioContext.shared.constants.UI_EVENTS.REQUEST_CAMERA_LIST_RENDER);
   };
 
   handleWorkflowAction = () => {

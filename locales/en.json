@@ -18,7 +18,7 @@
   "studioResetSamples": "Reset",
   "studioRecordSample": "Record ({{count}}/{{needed}})",
   "studioCaptureSample": "Recording ({{countdown}}s)",
-  "studioAnalyzeAndGenerate": "Analyze & Generate",
+  "studioAnalyzeAndGenerate": "Generate",
   "studioSamplesLabel": "Samples: {{captured}}/{{needed}}",
   "studioSaveGesture": "Save Gesture",
   "studioStartOver": "Restart",

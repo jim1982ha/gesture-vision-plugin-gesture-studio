@@ -1,6 +1,8 @@
 /* FILE: extensions/plugins/gesture-studio/frontend/logic/feature-extractor.js */
 const MIN_SAMPLES_FOR_STATISTICAL_RELEVANCE = 3;
 const RULE_PRUNING_FACTOR = 0.75;
+const MAX_ABSOLUTE_TOLERANCE_DIST = 0.1; // Max tolerance in normalized coordinates
+const MAX_ABSOLUTE_TOLERANCE_ANGLE = 45.0; // Max tolerance in degrees
 
 export class FeatureExtractor {
   #gestureType;
@@ -10,42 +12,22 @@ export class FeatureExtractor {
     this.#gestureType = gestureType;
   }
 
-  #calculateStats(values, metricType) {
-    const RELATIVE_TOLERANCE_FACTOR = 0.25;
-    const MIN_ABSOLUTE_TOLERANCE_DIST = 0.02;
-    const MIN_ABSOLUTE_TOLERANCE_ANGLE = 5.0;
-
+  #calculateStats(values) {
     const minObserved = Math.min(...values);
     const maxObserved = Math.max(...values);
     const range = maxObserved - minObserved;
-    const avg = (minObserved + maxObserved) / 2;
-
-    const relativeTolerance = range * RELATIVE_TOLERANCE_FACTOR;
-    const absoluteMinTolerance =
-      metricType === "angle"
-        ? MIN_ABSOLUTE_TOLERANCE_ANGLE
-        : MIN_ABSOLUTE_TOLERANCE_DIST;
-    const finalTolerance = Math.max(relativeTolerance, absoluteMinTolerance);
-
-    const finalMin = Math.max(0, minObserved - finalTolerance);
-    const finalMax = maxObserved + finalTolerance;
-
+    const avg = values.reduce((sum, v) => sum + v, 0) / values.length;
+    
     const variation = avg > 1e-6 ? range / avg : range > 1e-6 ? 1e6 : 0;
-    return { avg, min: finalMin, max: finalMax, variation };
+    return { avg, min: minObserved, max: maxObserved, variation };
   }
 
   extract(samples, selectedLandmarkIndices = null) {
     if (!samples || samples.length < MIN_SAMPLES_FOR_STATISTICAL_RELEVANCE) {
-      console.warn(
-        `[FeatureExtractor] Need ${
-          MIN_SAMPLES_FOR_STATISTICAL_RELEVANCE
-        } samples, got ${samples?.length || 0}.`
-      );
+      console.warn( `[FeatureExtractor] Need ${ MIN_SAMPLES_FOR_STATISTICAL_RELEVANCE } samples, got ${samples?.length || 0}.` );
       return null;
     }
 
-    // The user's selection is now primarily for visualization. We'll use a fallback
-    // of all possible points for rule generation to ensure robustness.
     const focusPointsForDisplay =
       selectedLandmarkIndices && selectedLandmarkIndices.size > 0
         ? selectedLandmarkIndices
@@ -77,13 +59,11 @@ export class FeatureExtractor {
         allPotentialRules.push({
           type: type,
           points: ruleDef,
-          stats: this.#calculateStats(values, type),
+          stats: this.#calculateStats(values),
         });
       }
     };
 
-    // MODIFICATION: Generate rules from ALL possible landmark combinations,
-    // ignoring the user's manual selection for the algorithm.
     ruleGroups.relativeDistances.forEach((indices) =>
       addRule({ p1: indices[0], p2: indices[1] }, "distance")
     );
@@ -127,7 +107,7 @@ export class FeatureExtractor {
 
     return {
       rules: finalExtractedRules,
-      focusPoints: Array.from(focusPointsForDisplay), // Return this for visualization
+      focusPoints: Array.from(focusPointsForDisplay),
     };
   }
 
@@ -163,52 +143,11 @@ export class FeatureExtractor {
   }
 
   generateJsFileContent(definition) {
-    const { metadata, rules, tolerance } = definition;
-    const landmarkMap =
-      this.#gestureType === "hand"
-        ? self.GestureUtils.HandLandmarks
-        : self.GestureUtils.PoseLandmarks;
-    const getName = (idx) => {
-      for (const [name, index] of Object.entries(landmarkMap))
-        if (index === idx) return `Landmarks.${name}`;
-      return idx;
-    };
-
-    const applyToleranceToRule = (rule) => {
-      const { min, max } = rule;
-      const originalRange = max - min;
-      const toleranceAmount = (originalRange / 2) * tolerance;
-      return {
-        ...rule,
-        min: Math.max(0, min - toleranceAmount),
-        max: max + toleranceAmount,
-      };
-    };
-
-    const formatRule = (ruleWithTolerance) => {
-      const pointKeys = Object.keys(ruleWithTolerance).filter((k) =>
-        k.startsWith("p")
-      );
-      const statKeys = Object.keys(ruleWithTolerance).filter(
-        (k) => !k.startsWith("p")
-      );
-      const points = pointKeys
-        .map((k) => `${k}: ${getName(ruleWithTolerance[k])}`)
-        .join(", ");
-      const stats = statKeys
-        .map((k) => `${k}: ${ruleWithTolerance[k].toFixed(4)}`)
-        .join(", ");
-      return `{ ${points}, ${stats} }`;
-    };
-
-    const distRules = rules.relativeDistances
-      .map((rule) => formatRule(applyToleranceToRule(rule)))
-      .join(",\n      ");
-    const angleRules = rules.jointAngles
-      .map((rule) => formatRule(applyToleranceToRule(rule)))
-      .join(",\n      ");
-
+    const { metadata, rules } = definition;
     const checkFn = metadata.type === "pose" ? "checkPose" : "checkGesture";
+    
+    const rulesJsonString = JSON.stringify(rules, null, 2);
+
     return `// Custom Gesture: ${metadata.name} (Type: ${metadata.type})
 // Description: ${metadata.description}
 // Generated by GestureVision Studio on ${new Date().toLocaleDateString()}
@@ -217,22 +156,41 @@ export const metadata = {
   "description": "${metadata.description}",
   "type": "${metadata.type}"
 };
-export function ${checkFn}(_landmarks, _worldLandmarks) {
-  // This function is executed by the worker to get the gesture definition.
-  // It must return an object with a 'rules' key.
-  const Landmarks = self.${
-    metadata.type === "hand" ? "HandLandmarks" : "PoseLandmarks"
+
+const MAX_ABSOLUTE_TOLERANCE_DIST = ${MAX_ABSOLUTE_TOLERANCE_DIST};
+const MAX_ABSOLUTE_TOLERANCE_ANGLE = ${MAX_ABSOLUTE_TOLERANCE_ANGLE};
+const baseRules = ${rulesJsonString};
+
+function applyToleranceToRule(rule, isAngle, tolerance) {
+    const { avg, min: minObserved, max: maxObserved } = rule;
+    
+    // The inherent variance of the recorded samples.
+    const observedRange = maxObserved - minObserved;
+    
+    // The maximum possible extra tolerance we can add.
+    const maxAddedTolerance = isAngle ? MAX_ABSOLUTE_TOLERANCE_ANGLE : MAX_ABSOLUTE_TOLERANCE_DIST;
+    
+    // Use an easing curve for smoother control.
+    const easedTolerance = Math.pow(tolerance, 1.5);
+    
+    // The final range is the inherent variance PLUS an additional amount controlled by the slider.
+    const finalRange = observedRange + (maxAddedTolerance * easedTolerance);
+    const toleranceAmount = finalRange / 2;
+
+    const center = (minObserved + maxObserved) / 2;
+    const newMin = Math.max(0, center - toleranceAmount);
+    const newMax = center + toleranceAmount;
+
+    return { ...rule, min: newMin, max: newMax };
+}
+
+export function ${checkFn}(_landmarks, _worldLandmarks, tolerance = 0.0) {
+  const finalRules = {
+      ...baseRules,
+      relativeDistances: baseRules.relativeDistances.map(r => applyToleranceToRule(r, false, tolerance)),
+      jointAngles: baseRules.jointAngles.map(r => applyToleranceToRule(r, true, tolerance)),
   };
-  const rules = {
-    type: "${metadata.type}",
-    relativeDistances: [
-      ${distRules}
-    ],
-    jointAngles: [
-      ${angleRules}
-    ]
-  };
-  return { rules };
+  return { rules: finalRules };
 }`;
   }
 

@@ -45,6 +45,7 @@ export const elementIdMap = {
   recordWorkflowBtnText: "record-workflow-btn-text",
   countdownOverlay: "countdown-overlay",
   countdownOverlayText: "countdown-overlay-text",
+  backToSetupBtnFromRecord: "back-to-setup-btn-from-record",
   
   // Step 3: Test
   liveTestDisplay: "live-test-display",

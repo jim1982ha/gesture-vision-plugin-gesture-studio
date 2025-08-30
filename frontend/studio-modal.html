@@ -81,14 +81,20 @@
                                 <p id="samples-counter-display">Samples: 0/3</p>
                                 <div id="samples-preview" class="samples-preview"></div>
                                 <div class="form-actions-group justify-space-between">
-                                    <button id="reset-samples-btn" class="btn btn-secondary">
-                                        <span class="material-icons">restart_alt</span>
-                                        <span id="btn-text-reset-samples" data-translate-key="studioResetSamples">Reset</span>
+                                    <button id="back-to-setup-btn-from-record" class="btn btn-secondary">
+                                        <span class="material-icons">arrow_back</span>
+                                        <span data-translate-key="studioStartOver">Restart</span>
                                     </button>
-                                    <button id="record-workflow-btn" class="btn btn-primary">
-                                        <span class="material-icons">radio_button_checked</span>
-                                        <span id="record-workflow-btn-text" data-translate-key="studioRecordSample">Record Sample</span>
-                                    </button>
+                                    <div>
+                                        <button id="reset-samples-btn" class="btn btn-secondary">
+                                            <span class="material-icons">restart_alt</span>
+                                            <span id="btn-text-reset-samples" data-translate-key="studioResetSamples">Reset</span>
+                                        </button>
+                                        <button id="record-workflow-btn" class="btn btn-primary">
+                                            <span class="material-icons">radio_button_checked</span>
+                                            <span id="record-workflow-btn-text" data-translate-key="studioRecordSample">Record Sample</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </section>
                             
@@ -120,7 +126,7 @@
                                 <div id="test-controls-group" class="form-actions-group justify-space-between">
                                     <button id="back-to-setup-btn" class="btn btn-secondary">
                                         <span class="material-icons">arrow_back</span>
-                                        <span id="btn-text-back-to-setup" data-translate-key="studioStartOver">Start Over</span>
+                                        <span id="btn-text-back-to-setup" data-translate-key="studioStartOver">Restart</span>
                                     </button>
                                     <button id="save-gesture-btn" class="btn btn-primary">
                                         <span class="material-icons">save</span>

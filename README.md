@@ -43,7 +43,7 @@ The Gesture Studio is a UI-only plugin and does not have a configuration file. I
     -   Position yourself and perform the gesture.
     -   Click **"Record Sample"**. A short countdown will begin, after which a snapshot is taken.
     -   Repeat until you have recorded the required number of samples. Thumbnails will appear as you go.
-    -   Once all samples are recorded, the main button will change to **"Analyze & Generate"**. Click it.
+    -   Once all samples are recorded, the main button will change to **"Generate"**. Click it.
 5.  **Step 3: Test & Refine**
     -   The Studio will display the generated code and a summary of the extracted features.
     -   Perform your gesture in the live video feed. A status display will show the real-time recognition confidence.
