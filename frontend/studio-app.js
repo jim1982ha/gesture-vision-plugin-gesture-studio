@@ -149,8 +149,15 @@ class StudioController {
     
     try {
       const snapshot = await this.#studioContext.cameraService.getLandmarkSnapshot();
-      if (snapshot?.landmarks?.length && snapshot.imageData) this.#sessionManager.addSample(snapshot);
-      else showToastNotification(this.#translate(snapshot?.imageData ? "toastSampleCaptureFailedNoLandmarks" : "toastSampleCaptureFailedGeneric"), true);
+      const cameraManager = this.#studioContext.cameraService.getCameraManager();
+      const sourceId = cameraManager.getCurrentDeviceId();
+      const isMirrored = cameraManager.isMirrored();
+
+      if (snapshot?.landmarks?.length && snapshot.imageData) {
+        this.#sessionManager.addSample(snapshot, sourceId, isMirrored);
+      } else {
+        showToastNotification(this.#translate(snapshot?.imageData ? "toastSampleCaptureFailedNoLandmarks" : "toastSampleCaptureFailedGeneric"), true);
+      }
     } catch (e) {
       console.error("Error capturing sample:", e);
       showToastNotification(`${this.#translate("errorGeneric")}: ${e.message}`, true);
@@ -257,11 +264,12 @@ class StudioController {
     const sample = this.#sessionManager.getSamples()[sampleIndex];
     if (!sample) return;
     if (!this.#landmarkSelector) {
-      const response = await fetch(`/api/plugins/assets/${this.#manifest.id}/frontend/landmark-selector.html`);
+      const response = await fetch(`/api/plugins/${this.#manifest.id}/assets/frontend/landmark-selector.html`);
       const html = await response.text();
       const container = document.createElement("div");
       container.innerHTML = html;
-      document.body.appendChild(container.firstElementChild);
+      // FIX: Append the landmark selector modal to the main studio modal, not the body.
+      this.#modalContainer?.appendChild(container.firstElementChild);
       this.#landmarkSelector = new LandmarkSelector({
         modalElement: document.getElementById('landmark-selector-modal'),
         onConfirm: (indices) => this.#sessionManager.setSelectedLandmarkIndices(indices),

@@ -50,7 +50,8 @@ export class StudioCameraManager {
     this.#context.services.pubsub.publish(UI_EVENTS.REQUEST_OVERLAY_STATE, "hidden");
 
     if (!this.#context.uiController.sidebarManager.isMobile) {
-        this.#context.uiController.layoutManager.setVideoSizeConstrained(false);
+        // FIX: Call the new setVideoSizeOverride method to temporarily expand the video.
+        this.#context.uiController.layoutManager.setVideoSizeOverride(false);
     }
 
     await this.#cameraServiceInstance.startStream({
@@ -76,7 +77,8 @@ export class StudioCameraManager {
     }
     
     if (!this.#context.uiController.sidebarManager.isMobile) {
-        this.#context.uiController.layoutManager.setVideoSizeConstrained(true);
+        // FIX: Call applyVideoSizePreference() to restore the layout based on user settings.
+        this.#context.uiController.layoutManager.applyVideoSizePreference();
     }
 
     this.#context.services.pubsub.publish(UI_EVENTS.REQUEST_OVERLAY_STATE, "OFFLINE_IDLE");

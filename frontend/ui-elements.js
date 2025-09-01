@@ -1,10 +1,11 @@
-/* FILE: extensions/plugins/gesture-studio/frontend/ui-elements.js */
+/* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/ui-elements.js */
 // Defines and exports a map of element IDs used within the Gesture Studio modal.
 
 export const elementIdMap = {
   // Shell and Header
   studioShell: "studio-shell",
   studioHeaderTitleText: "studio-header-title-text",
+  studioHeaderIcon: "studio-header-icon", // FIX: Add the missing header icon ID
   closeStudioBtn: "close-studio-btn",
   
   // Columns and Sections

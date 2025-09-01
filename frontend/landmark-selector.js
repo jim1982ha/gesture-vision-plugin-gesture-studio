@@ -30,6 +30,8 @@ export class LandmarkSelector {
     this.#setIcon = setIcon;
     this.#attachEventListeners();
     this.#applyTranslations();
+    // FIX: Set the header icon on initialization
+    this.#setIcon(this.#modalElement.querySelector(".header-icon"), 'UI_HANDS_LANDMARKS_DROPDOWN_TRIGGER');
   }
 
   #attachEventListeners() {
@@ -174,11 +176,12 @@ export class LandmarkSelector {
     const setupButton = (buttonId, iconKey, textKey) => {
         const button = el.querySelector(`#${buttonId}`);
         if (!button) return;
-        button.innerHTML = ''; 
+
+        button.innerHTML = '';
 
         const iconSpan = document.createElement('span');
         this.#setIcon(iconSpan, iconKey);
-
+        
         const textSpan = document.createElement('span');
         textSpan.textContent = this.#translate(textKey);
 

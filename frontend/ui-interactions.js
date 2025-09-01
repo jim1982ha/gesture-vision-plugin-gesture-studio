@@ -12,8 +12,6 @@ export function getSetupData(translate) {
             samplesToRecord = val;
         } else {
             samplesInput.value = "3";
-            // NOTE: showToastNotification is called here, but it's a simple function
-            // with no dependencies on context, so this is okay.
             showToastNotification(translate('toastInvalidSampleCount'), true);
         }
     }
@@ -30,8 +28,7 @@ export function updateSamplesDisplay(samples, onSampleClick) {
     UIElements.samplesPreview.innerHTML = '';
     samples.forEach((sample, index) => {
         const canvas = document.createElement("canvas");
-        canvas.width = 120; canvas.height = 90;
-        canvas.className = "studio-sample-canvas";
+        canvas.className = "w-[120px] h-[90px] border border-border dark:border-dark-border rounded-md cursor-pointer hover:border-primary dark:hover:border-dark-primary hover:shadow-lg";
         canvas.title = "Click to select focus points for this sample";
         if (typeof onSampleClick === 'function') {
             canvas.addEventListener('click', () => onSampleClick(index));
@@ -64,9 +61,9 @@ export function displayGeneratedCode(codeString) {
 export function updateLiveConfidenceDisplay(result, translate) {
     if (UIElements.liveDetectedStatus) {
         const detectedText = result?.detected ? translate("studioStatusDetected") : translate("studioStatusNotDetected");
-        const colorVar = result?.detected ? 'var(--success)' : 'var(--error)';
+        const colorClass = result?.detected ? 'text-success dark:text-dark-success' : 'text-error dark:text-dark-error';
         UIElements.liveDetectedStatus.textContent = detectedText;
-        UIElements.liveDetectedStatus.style.color = colorVar;
+        UIElements.liveDetectedStatus.className = colorClass;
     }
     if (UIElements.liveConfidenceValue) {
         UIElements.liveConfidenceValue.textContent = (result?.confidence != null) ? `${(result.confidence * 100).toFixed(1)}%` : "-";
@@ -81,12 +78,12 @@ export function showToastNotification(message, isError = false) {
     const existing = document.querySelector(".toast-notification");
     if (existing) { existing.remove(); if (toastTimeoutId) clearTimeout(toastTimeoutId); }
     const toast = document.createElement("div");
-    toast.className = `toast-notification ${isError ? 'error' : ''}`;
+    toast.className = `alert ${isError ? 'error' : 'info'} toast-notification`; // Re-use alert component classes
     toast.textContent = message;
     document.body.appendChild(toast);
-    requestAnimationFrame(() => toast.classList.add("show"));
+    requestAnimationFrame(() => toast.classList.add("visible"));
     toastTimeoutId = window.setTimeout(() => {
-        toast.classList.remove("show");
+        toast.classList.remove("visible");
         setTimeout(() => toast.parentNode?.removeChild(toast), 500);
     }, isError ? 5000 : 3000);
 }

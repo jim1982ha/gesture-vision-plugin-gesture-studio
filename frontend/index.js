@@ -1,51 +1,41 @@
 /* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/index.js */
-// The static import is removed. Code will be loaded dynamically on demand.
 
-// Access core functionalities from the passed context object
-function launchModal(context, manifest) {
-  const { services } = context;
-  const { pubsub, translate } = services;
-  const { globalSettingsModalManager } = context;
+async function launchModal(context, manifest) {
+  const { services, globalSettingsModalManager } = context;
+  const { pubsub } = services;
 
   if (!globalSettingsModalManager) {
     console.error("[GestureStudio] Cannot launch, GlobalSettingsModalManager not found in context.");
-    pubsub.publish('ui:showError', { message: translate('errorGeneric', { message: `Could not open Gesture Studio.` }) });
+    pubsub.publish('ui:showError', { messageKey: 'studioLaunchError', substitutions: { reason: "Component not found."} });
     return;
   }
   
   globalSettingsModalManager.closeModal();
 
-  // Dynamically import the studio-app module
-  import('./studio-app.js')
-    .then(({ initializeStudioUI }) => {
-      fetch(`/api/plugins/assets/${manifest.id}/frontend/studio-modal.html`)
-        .then(response => {
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            return response.text();
-        })
-        .then(html => {
-          const tempContainer = document.createElement('div');
-          tempContainer.innerHTML = html.trim();
-          
-          const studioModalElement = tempContainer.firstElementChild;
+  try {
+    const { initializeStudioUI } = await import('./studio-app.js');
+    
+    // FIX: Use the correct asset path that works in both dev and prod
+    const response = await fetch(`/api/plugins/${manifest.id}/assets/frontend/studio-modal.html`);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    
+    const html = await response.text();
+    const tempContainer = document.createElement('div');
+    tempContainer.innerHTML = html.trim();
+    
+    const studioModalElement = tempContainer.querySelector('#studio-shell');
 
-          if (studioModalElement && studioModalElement.id === 'studio-shell') {
-            document.body.appendChild(studioModalElement);
-            // Call the imported function only after the module is loaded
-            initializeStudioUI(context, studioModalElement, manifest);
-          } else {
-            throw new Error("Failed to parse studio-modal.html: #studio-shell not found");
-          }
-        })
-        .catch(error => {
-          console.error('Failed to load gesture studio assets or initialize:', error);
-          pubsub.publish('ui:showError', { message: translate('errorGeneric', { message: 'Could not open Gesture Studio.' }) });
-        });
-    })
-    .catch(error => {
-      console.error('Failed to dynamically load gesture studio module:', error);
-      pubsub.publish('ui:showError', { message: translate('errorGeneric', { message: 'Could not load Gesture Studio module.' }) });
-    });
+    if (studioModalElement) {
+        document.body.appendChild(studioModalElement);
+        initializeStudioUI(context, studioModalElement, manifest);
+    } else {
+        throw new Error("Failed to find #studio-shell in fetched HTML. The file might be corrupt or the dev server isn't serving it correctly.");
+    }
+  } catch(error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      console.error('Failed to load gesture studio assets or initialize:', error);
+      pubsub.publish('ui:showError', { messageKey: 'studioLaunchError', substitutions: { reason } });
+  }
 }
 
 const gestureStudioPlugin = {

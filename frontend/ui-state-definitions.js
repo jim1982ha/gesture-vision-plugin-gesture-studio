@@ -50,6 +50,11 @@ export function updateUIState(state, payload = {}) {
     countdownOverlay,
     countdownOverlayText,
     liveTestDisplay,
+    backToSetupBtn,
+    backToSetupBtnFromRecord,
+    resetSamplesBtn,
+    saveGestureBtn,
+    studioHeaderIcon, // Add header icon to elements
   } = UIElements;
   
   const { translate, setIcon } = payload;
@@ -70,12 +75,21 @@ export function updateUIState(state, payload = {}) {
   let stepTitleKey = "";
   let stepIconKey = "";
 
+  // FIX: Ensure all relevant buttons have icons set for every state change.
+  setIcon(backToSetupBtn, 'UI_CANCEL');
+  setIcon(backToSetupBtnFromRecord, 'UI_CANCEL');
+  setIcon(resetSamplesBtn, 'UI_DELETE');
+  setIcon(saveGestureBtn, 'UI_SAVE');
+  // FIX: Set the main header icon consistently
+  if (studioHeaderIcon) setIcon(studioHeaderIcon, 'UI_GESTURE');
+
   switch (state) {
     case "initial_define_record":
     case "error_state":
       setElementVisibility(defineSection, true);
       stepTitleKey = "studioStepDefineTitle";
       stepIconKey = "edit_note";
+      setIcon(UIElements.confirmSetupStartCameraBtn, 'UI_CONFIRM');
       break;
 
     case "camera_starting":

@@ -35,7 +35,7 @@ export class GestureRecorder {
     this.#samples.push({
       type: this.#gestureType,
       landmarks: snapshot.landmarks,
-      imageData: imageSource, // This is an ImageData object
+      imageData: imageSource,
     });
     
     return true;
