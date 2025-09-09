@@ -1,5 +1,10 @@
 /* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/index.js */
 
+// Ensure the global registry exists
+if (!window.GestureVisionPlugins) {
+  window.GestureVisionPlugins = {};
+}
+
 async function launchModal(context, manifest) {
   const { services, globalSettingsModalManager } = context;
   const { pubsub } = services;
@@ -15,8 +20,9 @@ async function launchModal(context, manifest) {
   try {
     const { initializeStudioUI } = await import('./studio-app.js');
     
-    // FIX: Use the correct asset path that works in both dev and prod
-    const response = await fetch(`/api/plugins/${manifest.id}/assets/frontend/studio-modal.html`);
+    // FIX: Use the correct asset path that works in both dev (Vite) and prod (Nginx).
+    // The path should start with /plugins/, not /api/plugins/assets/.
+    const response = await fetch(`/plugins/${manifest.id}/frontend/studio-modal.html`);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     
     const html = await response.text();
@@ -82,5 +88,8 @@ const gestureStudioPlugin = {
     context.pluginUIService.registerContribution('custom-gestures-actions', createBtn, manifest.id);
   }
 };
+
+// Register the module with the global registry
+window.GestureVisionPlugins['gesture-vision-plugin-gesture-studio'] = gestureStudioPlugin;
 
 export default gestureStudioPlugin;
