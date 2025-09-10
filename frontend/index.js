@@ -85,7 +85,8 @@ const gestureStudioPlugin = {
         launchModal(context, manifest);
     });
     
-    context.pluginUIService.registerContribution('custom-gestures-actions', createBtn, manifest.id);
+    // FIX: Corrected the slot ID to match the one in the custom gestures tab partial.
+    context.pluginUIService.registerContribution('custom-gestures-actions-slot', createBtn, manifest.id);
   }
 };
 
