@@ -1,7 +1,6 @@
 /* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/logic/studio-session-manager.js */
 import { GestureRecorder } from "../gesture-recorder.js";
 import { FeatureExtractor } from "./feature-extractor.js";
-import { UI_EVENTS, pubsub } from '#shared/index.js';
 
 /**
  * Manages the data and state for a single gesture creation session,
@@ -13,12 +12,14 @@ export class StudioSessionManager {
   #currentSetupData;
   #selectedLandmarkIndices = new Set();
   #analysisResult = null;
+  #context;
   
-  constructor(setupData, _translate) {
-    if (!setupData) {
-      throw new Error("StudioSessionManager requires setup data.");
+  constructor(setupData, context) {
+    if (!setupData || !context) {
+      throw new Error("StudioSessionManager requires setup data and a context object.");
     }
     this.#currentSetupData = setupData;
+    this.#context = context;
     this.#gestureRecorder = new GestureRecorder(setupData.type, setupData.samplesNeeded);
     this.#featureExtractor = new FeatureExtractor(setupData.type);
   }
@@ -47,7 +48,7 @@ export class StudioSessionManager {
   
   analyzeSamples() {
     if (!this.#gestureRecorder.isRecordingComplete()) {
-      pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: "toastCaptureAllSamples" });
+      this.#context.services.pubsub.publish(this.#context.shared.constants.UI_EVENTS.SHOW_ERROR, { messageKey: "toastCaptureAllSamples" });
       return null;
     }
     const samples = this.getSamples();
@@ -66,7 +67,7 @@ export class StudioSessionManager {
    */
   generateJsFileContent(tolerance) {
     if (!this.#analysisResult?.rules) {
-      pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: "toastNoGeneratedCode" });
+      this.#context.services.pubsub.publish(this.#context.shared.constants.UI_EVENTS.SHOW_ERROR, { messageKey: "toastNoGeneratedCode" });
       return null;
     }
     const fullJsonDefinition = {

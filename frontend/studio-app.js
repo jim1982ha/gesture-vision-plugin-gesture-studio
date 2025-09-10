@@ -5,7 +5,6 @@ import { StudioCameraManager } from "./logic/studio-camera-manager.js";
 import { StudioSessionManager } from "./logic/studio-session-manager.js";
 import { StudioLiveTester } from "./logic/studio-live-tester.js";
 import { StudioUIManager } from "./ui/studio-ui-manager.js";
-import { UI_EVENTS, pubsub } from "#shared/index.js";
 
 const CAPTURE_COUNTDOWN_SECONDS = 1;
 
@@ -47,7 +46,7 @@ class StudioController {
     this.#initializeUI();
     this.#attachEventListeners();
     this.applyStudioTranslations();
-    pubsub.publish(this.#studioContext.shared.constants.UI_EVENTS.REQUEST_CAMERA_LIST_RENDER);
+    this.#studioContext.services.pubsub.publish(this.#studioContext.shared.constants.UI_EVENTS.REQUEST_CAMERA_LIST_RENDER);
   }
 
   #initializeUI() {
@@ -73,10 +72,10 @@ class StudioController {
     const { CAMERA_SOURCE_EVENTS, WEBSOCKET_EVENTS, GESTURE_EVENTS } = this.#studioContext.shared.constants;
     
     this.#activeSubscriptions = [
-      pubsub.subscribe(CAMERA_SOURCE_EVENTS.MAP_UPDATED, this.renderCameraList),
-      pubsub.subscribe(WEBSOCKET_EVENTS.BACKEND_UPLOAD_CUSTOM_GESTURE_ACK, this.handleUploadAck),
+      this.#studioContext.services.pubsub.subscribe(CAMERA_SOURCE_EVENTS.MAP_UPDATED, this.renderCameraList),
+      this.#studioContext.services.pubsub.subscribe(WEBSOCKET_EVENTS.BACKEND_UPLOAD_CUSTOM_GESTURE_ACK, this.handleUploadAck),
       this.#appStore.subscribe(state => state.languagePreference, this.applyStudioTranslations),
-      pubsub.subscribe(GESTURE_EVENTS.TEST_RESULT, (testResult) => {
+      this.#studioContext.services.pubsub.subscribe(GESTURE_EVENTS.TEST_RESULT, (testResult) => {
         if (this.#currentStudioState === "testing_gesture") {
           this.#uiManager.updateLiveConfidenceDisplay(testResult, this.#translate);
         }
@@ -92,11 +91,11 @@ class StudioController {
   handleSetupCompleteAndStartCamera = () => {
     const setupDataAttempt = this.#uiManager.getSetupData();
     if (!setupDataAttempt.name) {
-      pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: "toastGestureNameRequired" });
+      this.#studioContext.services.pubsub.publish(this.#studioContext.shared.constants.UI_EVENTS.SHOW_ERROR, { messageKey: "toastGestureNameRequired" });
       return;
     }
     this.#currentSetupData = setupDataAttempt;
-    this.#sessionManager = new StudioSessionManager(setupDataAttempt, this.#translate);
+    this.#sessionManager = new StudioSessionManager(setupDataAttempt, this.#studioContext);
     this.#liveTester = new StudioLiveTester();
 
     this.#cameraManager.start(setupDataAttempt)
@@ -141,11 +140,11 @@ class StudioController {
       if (snapshot?.landmarks?.length && snapshot.imageData) {
         this.#sessionManager.addSample(snapshot, isMirrored);
       } else {
-        pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: snapshot?.imageData ? "toastSampleCaptureFailedNoLandmarks" : "toastSampleCaptureFailedGeneric" });
+        this.#studioContext.services.pubsub.publish(this.#studioContext.shared.constants.UI_EVENTS.SHOW_ERROR, { messageKey: snapshot?.imageData ? "toastSampleCaptureFailedNoLandmarks" : "toastSampleCaptureFailedGeneric" });
       }
     } catch (e) {
       console.error("Error capturing sample:", e);
-      pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: 'errorGeneric', substitutions: { message: (e).message } });
+      this.#studioContext.services.pubsub.publish(this.#studioContext.shared.constants.UI_EVENTS.SHOW_ERROR, { messageKey: 'errorGeneric', substitutions: { message: (e).message } });
     }
 
     this.#uiManager.updateSamplesDisplay(this.#sessionManager.getSamples() || [], this.#handleSampleClick);
@@ -174,7 +173,7 @@ class StudioController {
         this.#uiManager.showAnalysisResults(analysisResult.rules, this.#translate);
       } else {
         console.warn("[StudioController] Analysis failed.");
-        pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: 'studioAnalysisStatusFailed' });
+        this.#studioContext.services.pubsub.publish(this.#studioContext.shared.constants.UI_EVENTS.SHOW_ERROR, { messageKey: 'studioAnalysisStatusFailed' });
         this.#updateUIAndSetState("all_samples_recorded", {
             samplesCount: this.#sessionManager.getSamples().length, samplesNeeded: this.#currentSetupData.samplesNeeded,
         });
@@ -214,7 +213,7 @@ class StudioController {
     const tolerance = parseFloat(UIElements.gestureToleranceSlider?.value || "0.2");
     const codeString = this.#sessionManager.generateJsFileContent(tolerance);
     if (!codeString || !this.#currentSetupData) {
-      pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: 'toastNoGeneratedCode' });
+      this.#studioContext.services.pubsub.publish(this.#studioContext.shared.constants.UI_EVENTS.SHOW_ERROR, { messageKey: 'toastNoGeneratedCode' });
       return;
     }
     const { name, description, type } = this.#currentSetupData;
@@ -264,7 +263,7 @@ class StudioController {
     if (payload?.source !== "studio") return;
     const { UI_EVENTS } = this.#studioContext.shared.constants;
     if (payload.success) {
-      pubsub.publish(UI_EVENTS.SHOW_NOTIFICATION, { messageKey: 'customGestureSaveSuccess', substitutions: { name: payload.newDefinition?.name || '?' }, type: 'success' });
+      this.#studioContext.services.pubsub.publish(UI_EVENTS.SHOW_NOTIFICATION, { messageKey: 'customGestureSaveSuccess', substitutions: { name: payload.newDefinition?.name || '?' }, type: 'success' });
       
       const newGestureType = payload.newDefinition?.type;
       if (newGestureType === 'hand') {
@@ -274,7 +273,7 @@ class StudioController {
       }
 
     } else {
-      pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: 'toastSaveFailed', substitutions: { message: payload.message || "Unknown error" } });
+      this.#studioContext.services.pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: 'toastSaveFailed', substitutions: { message: payload.message || "Unknown error" } });
     }
   };
   

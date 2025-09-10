@@ -1,7 +1,24 @@
 /* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/ui/studio-ui-manager.js */
 import { UIElements, elementIdMap } from "./ui-elements.js";
-import { setElementVisibility } from "#frontend/ui/helpers/index.js";
-import { UI_EVENTS, pubsub } from "#shared/index.js";
+
+/**
+ * Sets the visibility of an HTML element by toggling a 'hidden' class.
+ * This is a local utility to avoid a direct import from the core frontend.
+ * @param {HTMLElement | null | undefined} element The HTML element.
+ * @param {boolean} isVisible True to show the element, false to hide.
+ * @param {string} displayStyleWhenVisible The display style to apply.
+ */
+function setElementVisibility(
+  element,
+  isVisible,
+  displayStyleWhenVisible = 'block'
+) {
+  if (!element) return;
+  element.classList.toggle('hidden', !isVisible);
+  if (isVisible && element.style.display === 'none') {
+    element.style.display = displayStyleWhenVisible;
+  }
+}
 
 /**
  * Manages all direct DOM creation, querying, and manipulation for the Gesture Studio modal.
@@ -10,9 +27,11 @@ export class StudioUIManager {
     #modalContainer;
     #translate;
     #setIcon;
+    #context;
 
     constructor(modalContainer, context) {
         this.#modalContainer = modalContainer;
+        this.#context = context;
         this.#translate = context.services.translate;
         this.#setIcon = context.uiComponents.setIcon;
     }
@@ -100,7 +119,7 @@ export class StudioUIManager {
                 samplesToRecord = val;
             } else {
                 samplesInput.value = "3";
-                pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: 'toastInvalidSampleCount' });
+                this.#context.services.pubsub.publish(this.#context.shared.constants.UI_EVENTS.SHOW_ERROR, { messageKey: 'toastInvalidSampleCount' });
             }
         }
         return {

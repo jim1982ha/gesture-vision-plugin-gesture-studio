@@ -5,6 +5,30 @@ if (!window.GestureVisionPlugins) {
   window.GestureVisionPlugins = {};
 }
 
+// FIX: Embed the HTML template directly into the JavaScript to avoid a separate fetch.
+const landmarkSelectorTemplate = `
+<div id="landmark-selector-modal-content" class="modal-content !max-w-3xl h-[90vh]">
+  <div id="landmark-selector-header" class="modal-header">
+    <span class="header-icon material-icons"></span>
+    <span class="header-title"></span>
+    <button id="landmark-selector-close-btn" class="btn btn-icon header-close-btn" aria-label="Close"><span class="mdi"></span></button>
+  </div>
+  <div class="modal-scrollable-content !p-0">
+    <div id="landmark-canvas-container" class="w-full h-full flex justify-center items-center bg-background overflow-hidden relative">
+      <canvas id="landmark-selector-canvas" class="max-w-full max-h-full object-contain cursor-pointer"></canvas>
+    </div>
+  </div>
+  <div class="modal-actions !justify-between">
+    <div class="flex gap-2">
+      <button id="landmark-select-all-btn" class="btn btn-secondary"></button>
+      <button id="landmark-deselect-all-btn" class="btn btn-secondary"></button>
+    </div>
+    <button id="landmark-confirm-selection-btn" class="btn btn-primary"></button>
+  </div>
+</div>
+`;
+
+
 async function launchModal(context) {
   const { services, globalSettingsModalManager, manifest } = context;
   const { pubsub } = services;
@@ -20,11 +44,7 @@ async function launchModal(context) {
   try {
     const { initializeStudioUI } = await import('./studio-app.js');
     
-    // This fetch now works because the new NPM advanced config proxies /plugins/ correctly.
-    const response = await fetch(`/plugins/${manifest.id}/frontend/ui/landmark-selector.html`);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    const landmarkSelectorTemplate = await response.text();
-
+    // FIX: The fetch call has been removed. The template is now a local constant.
     const studioModalElement = document.createElement('div');
     studioModalElement.id = 'studio-shell';
     studioModalElement.className = 'modal visible';
