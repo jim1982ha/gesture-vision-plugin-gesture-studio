@@ -65,12 +65,17 @@ class StudioController {
       else if (id) UIElements[key] = document.getElementById(id);
     }
     if (UIElements.studioShell) UIElements.studioShell.style.visibility = "visible";
-    this.#setIcon(UIElements.closeStudioBtn, 'UI_CLOSE');
+    
+    const closeBtn = this.#modalContainer.querySelector('.header-close-btn');
+    if (closeBtn) this.#setIcon(closeBtn, 'UI_CLOSE');
+
     updateUIState("initial_define_record", { translate: this.#translate, setIcon: this.#setIcon });
   }
 
   #attachEventListeners = () => {
-    UIElements.closeStudioBtn?.addEventListener("click", this.closeStudio.bind(this));
+    const closeBtn = this.#modalContainer.querySelector('.header-close-btn');
+    closeBtn?.addEventListener("click", this.closeStudio.bind(this));
+    
     UIElements.confirmSetupStartCameraBtn?.addEventListener("click", this.handleSetupCompleteAndStartCamera);
     UIElements.recordWorkflowBtn?.addEventListener("click", this.handleWorkflowAction);
     UIElements.resetSamplesBtn?.addEventListener("click", this.handleResetSamples);
@@ -268,10 +273,10 @@ class StudioController {
       const html = await response.text();
       const container = document.createElement("div");
       container.innerHTML = html;
-      // FIX: Append the landmark selector modal to the main studio modal, not the body.
-      this.#modalContainer?.appendChild(container.firstElementChild);
+      const modalElement = container.firstElementChild;
+      this.#modalContainer?.appendChild(modalElement);
       this.#landmarkSelector = new LandmarkSelector({
-        modalElement: document.getElementById('landmark-selector-modal'),
+        modalElement: modalElement,
         onConfirm: (indices) => this.#sessionManager.setSelectedLandmarkIndices(indices),
         onCancel: () => {},
         translate: this.#translate,
@@ -313,6 +318,14 @@ class StudioController {
     const shell = this.#modalContainer;
     if (!shell) return;
   
+    const header = shell.querySelector('.modal-header');
+    if (header) {
+        const title = header.querySelector('.header-title');
+        const icon = header.querySelector('.header-icon');
+        if (title) title.textContent = this.#translate("pluginStudioName");
+        if (icon) this.#setIcon(icon, 'UI_GESTURE');
+    }
+
     const translationMappings = [
       { dataAttr: 'data-translate-key', set: (el, val) => { if (el) el.textContent = val; } },
       { dataAttr: 'data-translate-key-aria-label', set: (el, val) => el.setAttribute('aria-label', val) },

@@ -20,18 +20,18 @@ async function launchModal(context, manifest) {
   try {
     const { initializeStudioUI } = await import('./studio-app.js');
     
-    // FIX: Use the correct asset path that works in both dev (Vite) and prod (Nginx).
-    // The path should start with /plugins/, not /api/plugins/assets/.
-    const response = await fetch(`/plugins/${manifest.id}/frontend/studio-modal.html`);
+    // FIX: Use the new backend asset route
+    const response = await fetch(`/api/plugins/${manifest.id}/assets/frontend/studio-modal.html`);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     
     const html = await response.text();
     const tempContainer = document.createElement('div');
     tempContainer.innerHTML = html.trim();
     
-    const studioModalElement = tempContainer.querySelector('#studio-shell');
+    // FIX: The root element of the fetched HTML is the modal itself
+    const studioModalElement = tempContainer.firstChild;
 
-    if (studioModalElement) {
+    if (studioModalElement && studioModalElement.id === 'studio-shell') {
         document.body.appendChild(studioModalElement);
         initializeStudioUI(context, studioModalElement, manifest);
     } else {

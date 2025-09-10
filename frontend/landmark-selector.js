@@ -30,14 +30,14 @@ export class LandmarkSelector {
     this.#setIcon = setIcon;
     this.#attachEventListeners();
     this.#applyTranslations();
-    // FIX: Set the header icon on initialization
-    this.#setIcon(this.#modalElement.querySelector(".header-icon"), 'UI_HANDS_LANDMARKS_DROPDOWN_TRIGGER');
   }
 
   #attachEventListeners() {
-    this.#modalElement
-      .querySelector("#landmark-selector-close-btn")
-      ?.addEventListener("click", () => this.hide());
+    // FIX: The close button is now part of the injected partial
+    const closeBtn = this.#modalElement.querySelector(".header-close-btn");
+    closeBtn?.addEventListener("click", () => this.hide());
+    if (closeBtn) this.#setIcon(closeBtn, 'UI_CLOSE');
+
     this.#modalElement
       .querySelector("#landmark-confirm-selection-btn")
       ?.addEventListener("click", this.#handleConfirm);
@@ -49,7 +49,6 @@ export class LandmarkSelector {
       ?.addEventListener("click", this.#deselectAll);
     this.#canvas.addEventListener("mousemove", this.#handleMouseMove);
     this.#canvas.addEventListener("click", this.#handleClick);
-    this.#setIcon(this.#modalElement.querySelector("#landmark-selector-close-btn"), 'UI_CLOSE');
   }
 
   show(sample, initialSelection) {
@@ -169,9 +168,12 @@ export class LandmarkSelector {
 
   #applyTranslations() {
     const el = this.#modalElement;
-    el.querySelector("#landmark-selector-title").textContent = this.#translate(
-      "landmarkSelectorTitle"
-    );
+    // FIX: The title and icon are now part of the injected header.
+    const titleEl = el.querySelector('.header-title');
+    const iconEl = el.querySelector('.header-icon');
+    if (titleEl) titleEl.textContent = this.#translate("landmarkSelectorTitle");
+    if (iconEl) this.#setIcon(iconEl, 'UI_HANDS_LANDMARKS_DROPDOWN_TRIGGER');
+    
 
     const setupButton = (buttonId, iconKey, textKey) => {
         const button = el.querySelector(`#${buttonId}`);
