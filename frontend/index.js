@@ -5,8 +5,8 @@ if (!window.GestureVisionPlugins) {
   window.GestureVisionPlugins = {};
 }
 
-async function launchModal(context, manifest) {
-  const { services, globalSettingsModalManager } = context;
+async function launchModal(context) {
+  const { services, globalSettingsModalManager, manifest } = context;
   const { pubsub } = services;
 
   if (!globalSettingsModalManager) {
@@ -20,23 +20,22 @@ async function launchModal(context, manifest) {
   try {
     const { initializeStudioUI } = await import('./studio-app.js');
     
-    // FIX: Use the new backend asset route
-    const response = await fetch(`/api/plugins/${manifest.id}/assets/frontend/studio-modal.html`);
+    // This fetch now works because the new NPM advanced config proxies /plugins/ correctly.
+    const response = await fetch(`/plugins/${manifest.id}/frontend/ui/landmark-selector.html`);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    
-    const html = await response.text();
-    const tempContainer = document.createElement('div');
-    tempContainer.innerHTML = html.trim();
-    
-    // FIX: The root element of the fetched HTML is the modal itself
-    const studioModalElement = tempContainer.firstChild;
+    const landmarkSelectorTemplate = await response.text();
 
-    if (studioModalElement && studioModalElement.id === 'studio-shell') {
-        document.body.appendChild(studioModalElement);
-        initializeStudioUI(context, studioModalElement, manifest);
-    } else {
-        throw new Error("Failed to find #studio-shell in fetched HTML. The file might be corrupt or the dev server isn't serving it correctly.");
-    }
+    const studioModalElement = document.createElement('div');
+    studioModalElement.id = 'studio-shell';
+    studioModalElement.className = 'modal visible';
+    studioModalElement.setAttribute('role', 'dialog');
+    studioModalElement.setAttribute('aria-modal', 'true');
+    studioModalElement.setAttribute('aria-labelledby', 'studio-header-title-text');
+    
+    document.body.appendChild(studioModalElement);
+    
+    initializeStudioUI(context, studioModalElement, { landmarkSelectorTemplate });
+
   } catch(error) {
       const reason = error instanceof Error ? error.message : String(error);
       console.error('Failed to load gesture studio assets or initialize:', error);
@@ -82,15 +81,13 @@ const gestureStudioPlugin = {
     });
 
     createBtn.addEventListener('click', () => {
-        launchModal(context, manifest);
+        launchModal(context);
     });
     
-    // FIX: Corrected the slot ID to match the one in the custom gestures tab partial.
     context.pluginUIService.registerContribution('custom-gestures-actions-slot', createBtn, manifest.id);
   }
 };
 
-// Register the module with the global registry
 window.GestureVisionPlugins['gesture-vision-plugin-gesture-studio'] = gestureStudioPlugin;
 
 export default gestureStudioPlugin;

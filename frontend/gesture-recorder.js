@@ -14,7 +14,7 @@ export class GestureRecorder {
     this.reset();
   }
 
-  addSample(snapshot) {
+  addSample(snapshot, isMirrored = false) {
     if (this.#samples.length >= this.#samplesNeeded) return false;
     
     const imageSource = snapshot?.imageData;
@@ -36,6 +36,7 @@ export class GestureRecorder {
       type: this.#gestureType,
       landmarks: snapshot.landmarks,
       imageData: imageSource,
+      isMirrored: isMirrored,
     });
     
     return true;

@@ -1,12 +1,14 @@
-/* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/ui-elements.js */
+/* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/ui/ui-elements.js */
 // Defines and exports a map of element IDs used within the Gesture Studio modal.
 
 export const elementIdMap = {
   // Shell and Header
   studioShell: "studio-shell",
+  studioModalContent: "studio-modal-content",
+  studioModalHeader: "studio-modal-header",
   studioHeaderTitleText: "studio-header-title-text",
-  studioHeaderIcon: "studio-header-icon", // FIX: Add the missing header icon ID
-  closeStudioBtn: "close-studio-btn",
+  studioHeaderIcon: "studio-header-icon",
+  studioCloseBtn: "studio-close-btn",
   
   // Columns and Sections
   studioContentWrapper: "studio-content-wrapper",
@@ -50,18 +52,14 @@ export const elementIdMap = {
   
   // Step 3: Test
   liveTestDisplay: "live-test-display",
-  liveStatusLabel: "live-status-label",
   liveDetectedStatus: "live-detected-status",
-  liveConfidenceLabel: "live-confidence-label",
   liveConfidenceValue: "live-confidence-value",
-  liveRequiredConfidenceLabel: "live-required-confidence-label",
   liveRequiredConfidenceValue: "live-required-confidence-value",
-  "label-gesture-tolerance": "label-gesture-tolerance",
+  gestureToleranceSlider: "gestureToleranceSlider",
+  gestureToleranceValue: "gestureToleranceValue",
   generatedCodeDetailsContainer: "generated-code-details-container",
-  labelGeneratedCode: "label-generated-code",
   generatedCodeTextarea: "generated-code",
   analysisDetailsContainer: "analysis-details-container",
-  labelAnalysis: "label-analysis",
   analysisStatus: "analysis-status",
   extractedFeaturesDisplay: "extracted-features-display",
   testControlsGroup: "test-controls-group",

@@ -1,18 +1,11 @@
 /* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/studio-app.js */
-import { updateUIState } from "./ui-state-definitions.js";
-import {
-  getSetupData,
-  showAnalysisResults,
-  displayGeneratedCode,
-  showToastNotification,
-  updateSamplesDisplay,
-  updateLiveConfidenceDisplay,
-} from "./ui-interactions.js";
-import { UIElements, elementIdMap } from "./ui-elements.js";
-import { LandmarkSelector } from "./landmark-selector.js";
+import { UIElements } from "./ui/ui-elements.js";
+import { LandmarkSelector } from "./ui/landmark-selector.js";
 import { StudioCameraManager } from "./logic/studio-camera-manager.js";
 import { StudioSessionManager } from "./logic/studio-session-manager.js";
 import { StudioLiveTester } from "./logic/studio-live-tester.js";
+import { StudioUIManager } from "./ui/studio-ui-manager.js";
+import { UI_EVENTS, pubsub } from "#shared/index.js";
 
 const CAPTURE_COUNTDOWN_SECONDS = 1;
 
@@ -24,7 +17,7 @@ class StudioController {
   #landmarkSelector = null;
   #canvasRendererRef = null;
   #modalContainer = null;
-  #manifest = null;
+  #uiManager = null;
 
   #currentStudioState = "initial_define_record";
   #studioContext = null;
@@ -34,48 +27,37 @@ class StudioController {
 
   #appStore = null;
   #translate = null;
-  #pubsub = null;
   #setIcon = null;
 
-  constructor(context, modalContainer, manifest) {
+  constructor(context, modalContainer) {
     if (!context?.cameraService || !context.coreStateManager || !context.gesture) {
       throw new Error("[GestureStudio] Critical services not provided in context.");
     }
     this.#studioContext = context;
     this.#appStore = context.coreStateManager;
     this.#translate = context.services.translate;
-    this.#pubsub = context.services.pubsub;
     this.#setIcon = context.uiComponents.setIcon;
-    this.#manifest = manifest;
     
     this.#modalContainer = modalContainer;
     this.#cameraManager = new StudioCameraManager(context);
     this.#canvasRendererRef = context.cameraService?.getCameraManager()?.getCanvasRenderer() || null;
     
-    this.#initializeUI(modalContainer);
+    this.#uiManager = new StudioUIManager(modalContainer, context);
+
+    this.#initializeUI();
     this.#attachEventListeners();
     this.applyStudioTranslations();
-    this.#pubsub.publish(this.#studioContext.shared.constants.UI_EVENTS.REQUEST_CAMERA_LIST_RENDER);
+    pubsub.publish(this.#studioContext.shared.constants.UI_EVENTS.REQUEST_CAMERA_LIST_RENDER);
   }
 
-  #initializeUI(modalContainer) {
-    for (const key in elementIdMap) {
-      const id = elementIdMap[key];
-      if (id && modalContainer) UIElements[key] = modalContainer.querySelector(`#${id}`);
-      else if (id) UIElements[key] = document.getElementById(id);
-    }
+  #initializeUI() {
+    this.#uiManager.buildModalContent();
     if (UIElements.studioShell) UIElements.studioShell.style.visibility = "visible";
-    
-    const closeBtn = this.#modalContainer.querySelector('.header-close-btn');
-    if (closeBtn) this.#setIcon(closeBtn, 'UI_CLOSE');
-
-    updateUIState("initial_define_record", { translate: this.#translate, setIcon: this.#setIcon });
+    this.#updateUIAndSetState("initial_define_record");
   }
 
   #attachEventListeners = () => {
-    const closeBtn = this.#modalContainer.querySelector('.header-close-btn');
-    closeBtn?.addEventListener("click", this.closeStudio.bind(this));
-    
+    UIElements.studioCloseBtn?.addEventListener("click", this.closeStudio.bind(this));
     UIElements.confirmSetupStartCameraBtn?.addEventListener("click", this.handleSetupCompleteAndStartCamera);
     UIElements.recordWorkflowBtn?.addEventListener("click", this.handleWorkflowAction);
     UIElements.resetSamplesBtn?.addEventListener("click", this.handleResetSamples);
@@ -83,21 +65,20 @@ class StudioController {
     UIElements.backToSetupBtn?.addEventListener("click", this.handleBackToSetup);
     UIElements.backToSetupBtnFromRecord?.addEventListener("click", this.handleBackToSetup);
     
-    const toleranceSlider = document.getElementById("gestureToleranceSlider");
-    if (toleranceSlider) {
-      toleranceSlider.addEventListener("input", this.#handleToleranceChange);
-      this.#updateToleranceOutput(parseFloat(toleranceSlider.value));
+    UIElements.gestureToleranceSlider?.addEventListener("input", this.#handleToleranceChange);
+    if (UIElements.gestureToleranceSlider) {
+      this.#updateToleranceOutput(parseFloat(UIElements.gestureToleranceSlider.value));
     }
     
     const { CAMERA_SOURCE_EVENTS, WEBSOCKET_EVENTS, GESTURE_EVENTS } = this.#studioContext.shared.constants;
     
     this.#activeSubscriptions = [
-      this.#pubsub.subscribe(CAMERA_SOURCE_EVENTS.MAP_UPDATED, this.renderCameraList),
-      this.#pubsub.subscribe(WEBSOCKET_EVENTS.BACKEND_UPLOAD_CUSTOM_GESTURE_ACK, this.handleUploadAck),
+      pubsub.subscribe(CAMERA_SOURCE_EVENTS.MAP_UPDATED, this.renderCameraList),
+      pubsub.subscribe(WEBSOCKET_EVENTS.BACKEND_UPLOAD_CUSTOM_GESTURE_ACK, this.handleUploadAck),
       this.#appStore.subscribe(state => state.languagePreference, this.applyStudioTranslations),
-      this.#pubsub.subscribe(GESTURE_EVENTS.TEST_RESULT, (testResult) => {
+      pubsub.subscribe(GESTURE_EVENTS.TEST_RESULT, (testResult) => {
         if (this.#currentStudioState === "testing_gesture") {
-          updateLiveConfidenceDisplay({ ...testResult, requiredConfidence: 0.1 }, this.#translate);
+          this.#uiManager.updateLiveConfidenceDisplay(testResult, this.#translate);
         }
       })
     ];
@@ -105,13 +86,13 @@ class StudioController {
 
   #updateUIAndSetState = (newState, payload = {}) => {
     this.#currentStudioState = newState;
-    updateUIState(newState, { ...payload, translate: this.#translate, setIcon: this.#setIcon });
+    this.#uiManager.renderState(newState, payload);
   };
 
   handleSetupCompleteAndStartCamera = () => {
-    const setupDataAttempt = getSetupData(this.#translate);
+    const setupDataAttempt = this.#uiManager.getSetupData();
     if (!setupDataAttempt.name) {
-      showToastNotification(this.#translate("toastGestureNameRequired"), true);
+      pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: "toastGestureNameRequired" });
       return;
     }
     this.#currentSetupData = setupDataAttempt;
@@ -155,20 +136,19 @@ class StudioController {
     try {
       const snapshot = await this.#studioContext.cameraService.getLandmarkSnapshot();
       const cameraManager = this.#studioContext.cameraService.getCameraManager();
-      const sourceId = cameraManager.getCurrentDeviceId();
       const isMirrored = cameraManager.isMirrored();
 
       if (snapshot?.landmarks?.length && snapshot.imageData) {
-        this.#sessionManager.addSample(snapshot, sourceId, isMirrored);
+        this.#sessionManager.addSample(snapshot, isMirrored);
       } else {
-        showToastNotification(this.#translate(snapshot?.imageData ? "toastSampleCaptureFailedNoLandmarks" : "toastSampleCaptureFailedGeneric"), true);
+        pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: snapshot?.imageData ? "toastSampleCaptureFailedNoLandmarks" : "toastSampleCaptureFailedGeneric" });
       }
     } catch (e) {
       console.error("Error capturing sample:", e);
-      showToastNotification(`${this.#translate("errorGeneric")}: ${e.message}`, true);
+      pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: 'errorGeneric', substitutions: { message: (e).message } });
     }
 
-    updateSamplesDisplay(this.#sessionManager.getSamples() || [], this.#handleSampleClick);
+    this.#uiManager.updateSamplesDisplay(this.#sessionManager.getSamples() || [], this.#handleSampleClick);
     const canAnalyze = this.#sessionManager.isRecordingComplete();
     const currentSamplesCount = this.#sessionManager.getSamples().length;
   
@@ -179,7 +159,7 @@ class StudioController {
   handleResetSamples = () => {
     this.#sessionManager.resetSamples();
     this.#canvasRendererRef?.setFocusPointsForDrawing(null);
-    updateSamplesDisplay([], this.#handleSampleClick);
+    this.#uiManager.updateSamplesDisplay([], this.#handleSampleClick);
     this.#updateUIAndSetState("ready_to_record", {
       samplesCount: 0, samplesNeeded: this.#currentSetupData.samplesNeeded,
     });
@@ -191,10 +171,10 @@ class StudioController {
       const analysisResult = this.#sessionManager.analyzeSamples();
       if (analysisResult?.rules) {
         this.updateGeneratedCodeAndStartTest();
-        showAnalysisResults(analysisResult.rules, this.#translate);
+        this.#uiManager.showAnalysisResults(analysisResult.rules, this.#translate);
       } else {
         console.warn("[StudioController] Analysis failed.");
-        showToastNotification(this.#translate("studioAnalysisStatusFailed"), true);
+        pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: 'studioAnalysisStatusFailed' });
         this.#updateUIAndSetState("all_samples_recorded", {
             samplesCount: this.#sessionManager.getSamples().length, samplesNeeded: this.#currentSetupData.samplesNeeded,
         });
@@ -203,10 +183,10 @@ class StudioController {
   };
   
   updateGeneratedCodeAndStartTest = () => {
-    const tolerance = parseFloat(document.getElementById("gestureToleranceSlider")?.value || "0.2");
+    const tolerance = parseFloat(UIElements.gestureToleranceSlider?.value || "0.2");
     const code = this.#sessionManager.generateJsFileContent(tolerance);
     if (code) {
-      displayGeneratedCode(code);
+      this.#uiManager.displayGeneratedCode(code);
       const result = this.#sessionManager.getAnalysisResult();
       this.#liveTester.start(result.rules, tolerance, this.#studioContext.gesture);
       this.#canvasRendererRef?.setFocusPointsForDrawing(result.focusPoints);
@@ -219,23 +199,23 @@ class StudioController {
     this.#updateToleranceOutput(newTolerance);
     this.#liveTester.updateTolerance(newTolerance);
     const newCode = this.#sessionManager.generateJsFileContent(newTolerance);
-    if (newCode) displayGeneratedCode(newCode);
+    if (newCode) this.#uiManager.displayGeneratedCode(newCode);
   };
 
   #updateToleranceOutput = (value) => {
-    const output = document.getElementById("gestureToleranceValue");
-    const slider = document.getElementById("gestureToleranceSlider");
-    if (!output || !slider) return;
-    output.textContent = `${Math.round(value * 100)}%`;
-    const min = parseFloat(slider.min), max = parseFloat(slider.max);
-    output.style.setProperty("--value-percent-raw", String((value - min) / (max - min)));
+    const { gestureToleranceValue, gestureToleranceSlider } = UIElements;
+    if (!gestureToleranceValue || !gestureToleranceSlider) return;
+    gestureToleranceValue.textContent = `${Math.round(value * 100)}%`;
+    const min = parseFloat(gestureToleranceSlider.min), max = parseFloat(gestureToleranceSlider.max);
+    gestureToleranceValue.style.setProperty("--value-percent-raw", String((value - min) / (max - min)));
   };
 
   handleSaveGesture = () => {
-    const tolerance = parseFloat(document.getElementById("gestureToleranceSlider")?.value || "0.2");
+    const tolerance = parseFloat(UIElements.gestureToleranceSlider?.value || "0.2");
     const codeString = this.#sessionManager.generateJsFileContent(tolerance);
     if (!codeString || !this.#currentSetupData) {
-      showToastNotification(this.#translate("toastNoGeneratedCode"), true); return;
+      pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: 'toastNoGeneratedCode' });
+      return;
     }
     const { name, description, type } = this.#currentSetupData;
     this.#studioContext.webSocketService.sendMessage({ type: "UPLOAD_CUSTOM_GESTURE", payload: { name, description, type, codeString, source: "studio" } });
@@ -265,22 +245,16 @@ class StudioController {
     }
   };
 
-  #handleSampleClick = async (sampleIndex) => {
+  #handleSampleClick = (sampleIndex) => {
     const sample = this.#sessionManager.getSamples()[sampleIndex];
     if (!sample) return;
+    
     if (!this.#landmarkSelector) {
-      const response = await fetch(`/api/plugins/${this.#manifest.id}/assets/frontend/landmark-selector.html`);
-      const html = await response.text();
-      const container = document.createElement("div");
-      container.innerHTML = html;
-      const modalElement = container.firstElementChild;
-      this.#modalContainer?.appendChild(modalElement);
       this.#landmarkSelector = new LandmarkSelector({
-        modalElement: modalElement,
         onConfirm: (indices) => this.#sessionManager.setSelectedLandmarkIndices(indices),
         onCancel: () => {},
         translate: this.#translate,
-        setIcon: this.#setIcon
+        setIcon: this.#studioContext.uiComponents.setIcon,
       });
     }
     this.#landmarkSelector.show(sample, this.#sessionManager.getSelectedLandmarkIndices());
@@ -290,7 +264,7 @@ class StudioController {
     if (payload?.source !== "studio") return;
     const { UI_EVENTS } = this.#studioContext.shared.constants;
     if (payload.success) {
-      this.#pubsub.publish(UI_EVENTS.SHOW_NOTIFICATION, { messageKey: 'customGestureSaveSuccess', substitutions: { name: payload.newDefinition?.name || '?' }, type: 'success' });
+      pubsub.publish(UI_EVENTS.SHOW_NOTIFICATION, { messageKey: 'customGestureSaveSuccess', substitutions: { name: payload.newDefinition?.name || '?' }, type: 'success' });
       
       const newGestureType = payload.newDefinition?.type;
       if (newGestureType === 'hand') {
@@ -300,7 +274,7 @@ class StudioController {
       }
 
     } else {
-      showToastNotification(this.#translate("toastSaveFailed", { message: payload.message || "Unknown error" }), true);
+      pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: 'toastSaveFailed', substitutions: { message: payload.message || "Unknown error" } });
     }
   };
   
@@ -322,8 +296,10 @@ class StudioController {
     if (header) {
         const title = header.querySelector('.header-title');
         const icon = header.querySelector('.header-icon');
+        const closeBtn = header.querySelector('.header-close-btn');
         if (title) title.textContent = this.#translate("pluginStudioName");
         if (icon) this.#setIcon(icon, 'UI_GESTURE');
+        if (closeBtn) this.#setIcon(closeBtn, 'UI_CLOSE');
     }
 
     const translationMappings = [
@@ -348,6 +324,9 @@ class StudioController {
   destroy = () => {
     this.#liveTester?.stop();
     this.#canvasRendererRef?.setFocusPointsForDrawing(null);
+    this.#landmarkSelector?.destroy();
+    this.#landmarkSelector = null;
+
     this.#activeSubscriptions.forEach((unsubscribeFn) => {
         if (typeof unsubscribeFn === 'function') {
             unsubscribeFn();
@@ -371,7 +350,7 @@ class StudioController {
 
 let currentStudioInstance = null;
 
-export function initializeStudioUI(context, modalContainer, manifest) {
+export function initializeStudioUI(context, modalContainer) {
   if (currentStudioInstance) currentStudioInstance.closeStudio().catch(console.error);
-  currentStudioInstance = new StudioController(context, modalContainer, manifest);
+  currentStudioInstance = new StudioController(context, modalContainer);
 }

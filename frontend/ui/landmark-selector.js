@@ -1,4 +1,4 @@
-/* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/landmark-selector.js */
+/* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/ui/landmark-selector.js */
 const LANDMARK_RADIUS = 5;
 const COLORS = {
   default: "rgba(0, 119, 182, 0.7)",
@@ -18,26 +18,54 @@ export class LandmarkSelector {
   #translate;
   #setIcon;
 
-  constructor({ modalElement, onConfirm, onCancel, translate, setIcon }) {
-    this.#modalElement = modalElement;
-    this.#canvas = this.#modalElement.querySelector(
-      "#landmark-selector-canvas"
-    );
-    this.#ctx = this.#canvas.getContext("2d");
+  constructor({ onConfirm, onCancel, translate, setIcon }) {
     this.#onConfirm = onConfirm;
     this.#onCancel = onCancel;
     this.#translate = translate;
     this.#setIcon = setIcon;
+
+    this.#modalElement = document.createElement('div');
+    this.#modalElement.id = 'landmark-selector-modal';
+    this.#modalElement.className = 'modal hidden';
+    document.body.appendChild(this.#modalElement);
+
+    this.#createUI();
+
+    this.#canvas = this.#modalElement.querySelector("#landmark-selector-canvas");
+    this.#ctx = this.#canvas.getContext("2d");
+
     this.#attachEventListeners();
     this.#applyTranslations();
   }
+  
+  #createUI() {
+    this.#modalElement.innerHTML = `
+      <div id="landmark-selector-modal-content" class="modal-content !max-w-3xl h-[90vh]">
+        <div id="landmark-selector-header" class="modal-header">
+          <span class="header-icon material-icons"></span>
+          <span class="header-title"></span>
+          <button id="landmark-selector-close-btn" class="btn btn-icon header-close-btn" aria-label="Close"><span class="mdi"></span></button>
+        </div>
+        <div class="modal-scrollable-content !p-0">
+          <div id="landmark-canvas-container" class="w-full h-full flex justify-center items-center bg-background overflow-hidden relative">
+            <canvas id="landmark-selector-canvas" class="max-w-full max-h-full object-contain cursor-pointer"></canvas>
+          </div>
+        </div>
+        <div class="modal-actions !justify-between">
+          <div class="flex gap-2">
+            <button id="landmark-select-all-btn" class="btn btn-secondary"></button>
+            <button id="landmark-deselect-all-btn" class="btn btn-secondary"></button>
+          </div>
+          <button id="landmark-confirm-selection-btn" class="btn btn-primary"></button>
+        </div>
+      </div>
+    `;
+  }
 
   #attachEventListeners() {
-    // FIX: The close button is now part of the injected partial
-    const closeBtn = this.#modalElement.querySelector(".header-close-btn");
+    const closeBtn = this.#modalElement.querySelector("#landmark-selector-close-btn");
     closeBtn?.addEventListener("click", () => this.hide());
-    if (closeBtn) this.#setIcon(closeBtn, 'UI_CLOSE');
-
+    
     this.#modalElement
       .querySelector("#landmark-confirm-selection-btn")
       ?.addEventListener("click", this.#handleConfirm);
@@ -51,7 +79,13 @@ export class LandmarkSelector {
     this.#canvas.addEventListener("click", this.#handleClick);
   }
 
+  destroy() {
+    this.#modalElement?.remove();
+    this.#modalElement = null;
+  }
+
   show(sample, initialSelection) {
+    if (!this.#modalElement) return;
     this.#currentSample = sample;
     this.#selectedIndices = new Set(initialSelection);
 
@@ -65,6 +99,7 @@ export class LandmarkSelector {
   }
 
   hide() {
+    if (!this.#modalElement) return;
     this.#modalElement.classList.add("hidden");
     this.#modalElement.classList.remove("visible");
     document.body.classList.remove("modal-open");
@@ -73,7 +108,7 @@ export class LandmarkSelector {
 
   #draw = async () => {
     if (!this.#currentSample || !this.#ctx) return;
-    const { imageData, landmarks } = this.#currentSample;
+    const { imageData, landmarks, isMirrored } = this.#currentSample;
     const canvas = this.#canvas;
 
     const imgAspectRatio = imageData.width / imageData.height;
@@ -89,6 +124,12 @@ export class LandmarkSelector {
     }
 
     this.#ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    if (isMirrored) {
+        this.#ctx.save();
+        this.#ctx.scale(-1, 1);
+        this.#ctx.translate(-canvas.width, 0);
+    }
 
     try {
       const imageBitmap = await createImageBitmap(imageData);
@@ -96,11 +137,15 @@ export class LandmarkSelector {
       imageBitmap.close();
     } catch (e) {
       console.error("Error drawing ImageData:", e);
+      if (isMirrored) this.#ctx.restore();
       return;
     }
+    
+    if (isMirrored) this.#ctx.restore();
 
     landmarks.forEach((lm, index) => {
-      const x = lm.x * canvas.width;
+      const landmarkX = isMirrored ? 1 - lm.x : lm.x;
+      const x = landmarkX * canvas.width;
       const y = lm.y * canvas.height;
 
       this.#ctx.beginPath();
@@ -116,21 +161,23 @@ export class LandmarkSelector {
   };
 
   #handleMouseMove = (e) => {
+    if (!this.#currentSample) return;
+
+    const isMirrored = this.#currentSample.isMirrored;
     const rect = this.#canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
 
     let foundIndex = -1;
-    if (this.#currentSample) {
-      for (let i = 0; i < this.#currentSample.landmarks.length; i++) {
+    for (let i = 0; i < this.#currentSample.landmarks.length; i++) {
         const lm = this.#currentSample.landmarks[i];
-        const lmX = lm.x * this.#canvas.width;
+        const landmarkX = isMirrored ? 1 - lm.x : lm.x;
+        const lmX = landmarkX * this.#canvas.width;
         const lmY = lm.y * this.#canvas.height;
-        if (Math.sqrt((x - lmX) ** 2 + (y - lmY) ** 2) < LANDMARK_RADIUS + 2) {
-          foundIndex = i;
-          break;
+        if (Math.sqrt((mouseX - lmX) ** 2 + (mouseY - lmY) ** 2) < LANDMARK_RADIUS + 2) {
+            foundIndex = i;
+            break;
         }
-      }
     }
 
     if (foundIndex !== this.#hoveredIndex) {
@@ -168,12 +215,13 @@ export class LandmarkSelector {
 
   #applyTranslations() {
     const el = this.#modalElement;
-    // FIX: The title and icon are now part of the injected header.
     const titleEl = el.querySelector('.header-title');
     const iconEl = el.querySelector('.header-icon');
+    const closeBtn = el.querySelector('#landmark-selector-close-btn');
+
     if (titleEl) titleEl.textContent = this.#translate("landmarkSelectorTitle");
     if (iconEl) this.#setIcon(iconEl, 'UI_HANDS_LANDMARKS_DROPDOWN_TRIGGER');
-    
+    if (closeBtn) this.#setIcon(closeBtn, 'UI_CLOSE');
 
     const setupButton = (buttonId, iconKey, textKey) => {
         const button = el.querySelector(`#${buttonId}`);

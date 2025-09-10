@@ -1,5 +1,5 @@
 /* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/logic/studio-camera-manager.js */
-import { UIElements } from "../ui-elements.js";
+import { UIElements } from "../ui/ui-elements.js";
 
 /**
  * Manages all camera and video-related logic for the Gesture Studio.
@@ -8,6 +8,7 @@ export class StudioCameraManager {
   #cameraServiceInstance;
   #isVideoContainerBorrowed = false;
   #context;
+  #canvasRendererRef;
 
   constructor(context) {
     if (!context || !context.cameraService) {
@@ -15,6 +16,7 @@ export class StudioCameraManager {
     }
     this.#context = context;
     this.#cameraServiceInstance = context.cameraService;
+    this.#canvasRendererRef = this.#cameraServiceInstance.getCameraManager().getCanvasRenderer();
   }
 
   /**
@@ -32,15 +34,15 @@ export class StudioCameraManager {
     
     const isHandGesture = setupData.type === 'hand';
     
-    const visibilityOverridePayload = { hand: isHandGesture, pose: !isHandGesture };
-    this.#context.services.pubsub.publish(GESTURE_EVENTS.REQUEST_LANDMARK_VISIBILITY_OVERRIDE, visibilityOverridePayload);
+    // Force landmarks to be visible for the recording session, overriding user preference.
+    this.#canvasRendererRef?.setLandmarkVisibilityOverride({ hand: isHandGesture, pose: !isHandGesture });
 
     const processingOverridePayload = {
         hand: isHandGesture,
         pose: !isHandGesture,
         numHands: 1,
-        builtIn: isHandGesture, // Enable built-in gestures for hand recording
-        custom: true, // Always enable custom for studio context
+        builtIn: isHandGesture,
+        custom: true,
     };
     this.#context.services.pubsub.publish(GESTURE_EVENTS.REQUEST_PROCESSING_OVERRIDE, processingOverridePayload);
     
@@ -50,7 +52,6 @@ export class StudioCameraManager {
     this.#context.services.pubsub.publish(UI_EVENTS.REQUEST_OVERLAY_STATE, "hidden");
 
     if (!this.#context.uiController.sidebarManager.isMobile) {
-        // FIX: Call the new setVideoSizeOverride method to temporarily expand the video.
         this.#context.uiController.layoutManager.setVideoSizeOverride(false);
     }
 
@@ -65,8 +66,11 @@ export class StudioCameraManager {
    */
   async stopAndRestore() {
     const { GESTURE_EVENTS, UI_EVENTS } = this.#context.shared.constants;
-    this.#context.services.pubsub.publish(GESTURE_EVENTS.CLEAR_LANDMARK_VISIBILITY_OVERRIDE);
+    
+    // Restore landmark visibility to respect the user's global preference.
+    this.#canvasRendererRef?.clearLandmarkVisibilityOverride();
     this.#context.services.pubsub.publish(GESTURE_EVENTS.CLEAR_PROCESSING_OVERRIDE);
+    
     if (this.#cameraServiceInstance?.isStreamActive()) {
       await this.#cameraServiceInstance.stopStream();
     }
@@ -77,7 +81,6 @@ export class StudioCameraManager {
     }
     
     if (!this.#context.uiController.sidebarManager.isMobile) {
-        // FIX: Call applyVideoSizePreference() to restore the layout based on user settings.
         this.#context.uiController.layoutManager.applyVideoSizePreference();
     }
 
