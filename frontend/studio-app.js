@@ -34,7 +34,7 @@ class StudioController {
     }
     this.#studioContext = context;
     this.#appStore = context.coreStateManager;
-    this.#translate = context.services.translate;
+    this.#translate = context.services.translationService.translate;
     this.#setIcon = context.uiComponents.setIcon;
     
     this.#modalContainer = modalContainer;

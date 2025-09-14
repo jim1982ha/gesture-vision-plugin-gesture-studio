@@ -2,25 +2,6 @@
 import { UIElements, elementIdMap } from "./ui-elements.js";
 
 /**
- * Sets the visibility of an HTML element by toggling a 'hidden' class.
- * This is a local utility to avoid a direct import from the core frontend.
- * @param {HTMLElement | null | undefined} element The HTML element.
- * @param {boolean} isVisible True to show the element, false to hide.
- * @param {string} displayStyleWhenVisible The display style to apply.
- */
-function setElementVisibility(
-  element,
-  isVisible,
-  displayStyleWhenVisible = 'block'
-) {
-  if (!element) return;
-  element.classList.toggle('hidden', !isVisible);
-  if (isVisible && element.style.display === 'none') {
-    element.style.display = displayStyleWhenVisible;
-  }
-}
-
-/**
  * Manages all direct DOM creation, querying, and manipulation for the Gesture Studio modal.
  */
 export class StudioUIManager {
@@ -28,12 +9,14 @@ export class StudioUIManager {
     #translate;
     #setIcon;
     #context;
+    #setElementVisibility;
 
     constructor(modalContainer, context) {
         this.#modalContainer = modalContainer;
         this.#context = context;
-        this.#translate = context.services.translate;
+        this.#translate = context.services.translationService.translate;
         this.#setIcon = context.uiComponents.setIcon;
+        this.#setElementVisibility = context.uiComponents.setElementVisibility;
     }
 
     buildModalContent() {
@@ -134,11 +117,11 @@ export class StudioUIManager {
     renderState(state, payload) {
         const { defineSection, recordSection, testSection, studioStepTitle, studioStepIcon, recordWorkflowBtn, countdownOverlay, countdownOverlayText, liveTestDisplay, backToSetupBtn, backToSetupBtnFromRecord, resetSamplesBtn, saveGestureBtn } = UIElements;
         
-        setElementVisibility(defineSection, false);
-        setElementVisibility(recordSection, false);
-        setElementVisibility(testSection, false);
-        setElementVisibility(countdownOverlay, false);
-        setElementVisibility(liveTestDisplay, false);
+        this.#setElementVisibility(defineSection, false);
+        this.#setElementVisibility(recordSection, false);
+        this.#setElementVisibility(testSection, false);
+        this.#setElementVisibility(countdownOverlay, false);
+        this.#setElementVisibility(liveTestDisplay, false);
 
         this.#updateDynamicTexts(state, payload);
 
@@ -155,14 +138,14 @@ export class StudioUIManager {
         switch (state) {
             case "initial_define_record":
             case "error_state":
-                setElementVisibility(defineSection, true);
+                this.#setElementVisibility(defineSection, true);
                 stepTitleKey = "studioStepDefineTitle";
                 stepIconKey = "edit_note";
                 this.#setIcon(UIElements.confirmSetupStartCameraBtn, 'UI_CONFIRM');
                 break;
             case "ready_to_record":
             case "all_samples_recorded":
-                setElementVisibility(recordSection, true);
+                this.#setElementVisibility(recordSection, true);
                 stepTitleKey = "studioStepRecordTitle";
                 stepIconKey = "camera";
                 if (recordWorkflowBtn) {
@@ -171,15 +154,15 @@ export class StudioUIManager {
                 }
                 break;
             case "capturing_sample":
-                setElementVisibility(recordSection, true);
+                this.#setElementVisibility(recordSection, true);
                 stepTitleKey = "studioStepRecordTitle";
                 stepIconKey = "camera";
                 if (recordWorkflowBtn) recordWorkflowBtn.disabled = true;
-                setElementVisibility(countdownOverlay, true);
+                this.#setElementVisibility(countdownOverlay, true);
                 if (countdownOverlayText) countdownOverlayText.textContent = payload.countdownValue ?? '...';
                 break;
             case "analyzing_features":
-                setElementVisibility(recordSection, true);
+                this.#setElementVisibility(recordSection, true);
                 stepTitleKey = "studioStepRecordTitle";
                 stepIconKey = "camera";
                 if (recordWorkflowBtn) {
@@ -190,8 +173,8 @@ export class StudioUIManager {
                 break;
             case "saving":
             case "testing_gesture":
-                setElementVisibility(testSection, true);
-                setElementVisibility(liveTestDisplay, true);
+                this.#setElementVisibility(testSection, true);
+                this.#setElementVisibility(liveTestDisplay, true);
                 stepTitleKey = "studioStepTestTitle";
                 stepIconKey = "biotech";
                 if (saveGestureBtn) saveGestureBtn.disabled = state === "saving";

@@ -1,5 +1,3 @@
-/* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/index.js */
-
 // Ensure the global registry exists
 if (!window.GestureVisionPlugins) {
   window.GestureVisionPlugins = {};
@@ -30,7 +28,7 @@ const landmarkSelectorTemplate = `
 
 
 async function launchModal(context) {
-  const { services, globalSettingsModalManager, manifest } = context;
+  const { services, globalSettingsModalManager } = context;
   const { pubsub } = services;
 
   if (!globalSettingsModalManager) {
@@ -44,7 +42,6 @@ async function launchModal(context) {
   try {
     const { initializeStudioUI } = await import('./studio-app.js');
     
-    // FIX: The fetch call has been removed. The template is now a local constant.
     const studioModalElement = document.createElement('div');
     studioModalElement.id = 'studio-shell';
     studioModalElement.className = 'modal visible';
@@ -71,7 +68,7 @@ const gestureStudioPlugin = {
     }
     
     const { coreStateManager: appStore, services, uiComponents, manifest } = context;
-    const { translate } = services;
+    const { translationService } = services;
     const { setIcon } = uiComponents;
     
     const createBtn = document.createElement('button');
@@ -88,8 +85,8 @@ const gestureStudioPlugin = {
     createBtn.appendChild(textSpan);
     
     const updateButtonTextAndIcon = () => {
-        textSpan.textContent = translate("studioCreateNew");
-        createBtn.title = translate("studioCreateNewTooltip", { defaultValue: "Create a new gesture using the Gesture Studio" });
+        textSpan.textContent = translationService.translate("studioCreateNew");
+        createBtn.title = translationService.translate("studioCreateNewTooltip", { defaultValue: "Create a new gesture using the Gesture Studio" });
         setIcon(createBtn, "UI_ADD");
     };
     
