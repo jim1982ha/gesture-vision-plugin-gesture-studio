@@ -27,6 +27,7 @@ class StudioController {
   #appStore = null;
   #translate = null;
   #setIcon = null;
+  #boundEscapeHandler;
 
   constructor(context, modalContainer) {
     if (!context?.cameraService || !context.coreStateManager || !context.gesture) {
@@ -43,10 +44,14 @@ class StudioController {
     
     this.#uiManager = new StudioUIManager(modalContainer, context);
 
+    this.#boundEscapeHandler = this.closeStudio.bind(this);
     this.#initializeUI();
     this.#attachEventListeners();
     this.applyStudioTranslations();
     this.#studioContext.services.pubsub.publish(this.#studioContext.shared.constants.UI_EVENTS.REQUEST_CAMERA_LIST_RENDER);
+    
+    this.#studioContext.uiComponents.modalStack.push('gesture-studio');
+    this.#studioContext.services.pubsub.subscribe('escape-for-gesture-studio', this.#boundEscapeHandler);
   }
 
   #initializeUI() {
@@ -254,6 +259,7 @@ class StudioController {
         onCancel: () => {},
         translate: this.#translate,
         setIcon: this.#studioContext.uiComponents.setIcon,
+        context: this.#studioContext,
       });
     }
     this.#landmarkSelector.show(sample, this.#sessionManager.getSelectedLandmarkIndices());
@@ -337,6 +343,9 @@ class StudioController {
     if (this.#countdownIntervalId) clearInterval(this.#countdownIntervalId);
     this.#sessionManager = null;
     this.#liveTester = null;
+    
+    this.#studioContext.uiComponents.modalStack.remove('gesture-studio');
+    this.#studioContext.services.pubsub.unsubscribe('escape-for-gesture-studio', this.#boundEscapeHandler);
   };
 
   closeStudio = async () => {

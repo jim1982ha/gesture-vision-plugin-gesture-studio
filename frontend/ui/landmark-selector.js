@@ -17,12 +17,16 @@ export class LandmarkSelector {
   #hoveredIndex = -1;
   #translate;
   #setIcon;
+  #context;
+  #boundEscapeHandler;
 
-  constructor({ onConfirm, onCancel, translate, setIcon }) {
+  constructor({ onConfirm, onCancel, translate, setIcon, context }) {
     this.#onConfirm = onConfirm;
     this.#onCancel = onCancel;
     this.#translate = translate;
     this.#setIcon = setIcon;
+    this.#context = context;
+    this.#boundEscapeHandler = this.hide.bind(this, true);
 
     this.#modalElement = document.createElement('div');
     this.#modalElement.id = 'landmark-selector-modal';
@@ -64,7 +68,7 @@ export class LandmarkSelector {
 
   #attachEventListeners() {
     const closeBtn = this.#modalElement.querySelector("#landmark-selector-close-btn");
-    closeBtn?.addEventListener("click", () => this.hide());
+    closeBtn?.addEventListener("click", () => this.hide(true));
     
     this.#modalElement
       .querySelector("#landmark-confirm-selection-btn")
@@ -82,6 +86,7 @@ export class LandmarkSelector {
   destroy() {
     this.#modalElement?.remove();
     this.#modalElement = null;
+    this.#context.services.pubsub.unsubscribe('escape-for-landmark-selector', this.#boundEscapeHandler);
   }
 
   show(sample, initialSelection) {
@@ -92,18 +97,25 @@ export class LandmarkSelector {
     this.#modalElement.classList.remove("hidden");
     this.#modalElement.classList.add("visible");
     document.body.classList.add("modal-open");
+    
+    this.#context.uiComponents.modalStack.push('landmark-selector');
+    this.#context.services.pubsub.subscribe('escape-for-landmark-selector', this.#boundEscapeHandler);
 
     requestAnimationFrame(() => {
       this.#draw();
     });
   }
 
-  hide() {
+  hide(wasCancelled = false) {
     if (!this.#modalElement) return;
     this.#modalElement.classList.add("hidden");
     this.#modalElement.classList.remove("visible");
     document.body.classList.remove("modal-open");
-    if (this.#onCancel) this.#onCancel();
+
+    this.#context.uiComponents.modalStack.remove('landmark-selector');
+    this.#context.services.pubsub.unsubscribe('escape-for-landmark-selector', this.#boundEscapeHandler);
+
+    if (wasCancelled && this.#onCancel) this.#onCancel();
   }
 
   #draw = async () => {
