@@ -129,8 +129,8 @@ export class StudioUIManager {
         let stepIconKey = "";
 
         this.#setIcon(backToSetupBtn, 'UI_CANCEL');
-        this.#setIcon(backToSetupBtnFromRecord, 'UI_CANCEL');
-        this.#setIcon(resetSamplesBtn, 'UI_DELETE');
+        this.#setIcon(backToSetupBtnFromRecord, 'UI_ONE');
+        this.#setIcon(resetSamplesBtn, 'UI_UNDO');
         this.#setIcon(saveGestureBtn, 'UI_SAVE');
         const headerIcon = this.#modalContainer.querySelector('.header-icon');
         if (headerIcon) this.#setIcon(headerIcon, 'UI_GESTURE');
@@ -141,7 +141,7 @@ export class StudioUIManager {
                 this.#setElementVisibility(defineSection, true);
                 stepTitleKey = "studioStepDefineTitle";
                 stepIconKey = "edit_note";
-                this.#setIcon(UIElements.confirmSetupStartCameraBtn, 'UI_CONFIRM');
+                this.#setIcon(UIElements.confirmSetupStartCameraBtn, 'UI_TWO');
                 break;
             case "ready_to_record":
             case "all_samples_recorded":
@@ -150,7 +150,7 @@ export class StudioUIManager {
                 stepIconKey = "camera";
                 if (recordWorkflowBtn) {
                     recordWorkflowBtn.disabled = false;
-                    this.#setIcon(recordWorkflowBtn, state === "all_samples_recorded" ? "UI_ANALYZE" : "UI_ADD");
+                    this.#setIcon(recordWorkflowBtn, state === "all_samples_recorded" ? "UI_THREE" : "UI_ADD");
                 }
                 break;
             case "capturing_sample":
