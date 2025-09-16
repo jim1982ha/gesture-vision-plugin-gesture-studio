@@ -37,11 +37,12 @@ export class StudioCameraManager {
     // Force landmarks to be visible for the recording session, overriding user preference.
     this.#canvasRendererRef?.setLandmarkVisibilityOverride({ hand: isHandGesture, pose: !isHandGesture });
 
+    // FIX: Refine the processing override payload for clarity and to disable built-in gestures during creation.
     const processingOverridePayload = {
         hand: isHandGesture,
         pose: !isHandGesture,
-        numHands: 1,
-        builtIn: isHandGesture,
+        numHands: isHandGesture ? 1 : 0,
+        builtIn: false, // We only care about detecting our custom gesture
         custom: true,
     };
     this.#context.services.pubsub.publish(GESTURE_EVENTS.REQUEST_PROCESSING_OVERRIDE, processingOverridePayload);

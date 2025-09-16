@@ -14,15 +14,36 @@ export const elementIdMap = {
   studioContentWrapper: "studio-content-wrapper",
   studioVideoColumn: "studio-video-column",
   studioControlsColumn: "studio-controls-column",
+  
+  // Initial Type Selection
+  creationTypeSelectionSection: "creation-type-selection-section",
+  staticTypeBtn: "static-type-btn",
+  dynamicTypeBtn: "dynamic-type-btn",
+  
+  // Common definition fields for both workflows
+  defineCommonSection: "define-common-section",
+
+  // Static-specific definition fields
   defineSection: "define-section",
-  recordSection: "record-section",
-  testSection: "test-section",
+
+  // Dynamic-specific definition fields
+  defineDynamicSection: "define-dynamic-section",
+  selectLandmarksBtn: "select-landmarks-btn",
+  selectedLandmarksDisplay: "selected-landmarks-display",
+  calibrateMinBtn: "calibrate-min-btn",
+  calibrateMaxBtn: "calibrate-max-btn",
+  calibrationResultDisplay: "calibration-result-display",
+  minDistanceDisplay: "min-distance-display",
+  maxDistanceDisplay: "max-distance-display",
+  dynamicWorkflowBtn: "dynamic-workflow-btn",
+  dynamicWorkflowBtnText: "dynamic-workflow-btn-text",
+  backToSetupBtnFromDynamic: "back-to-setup-btn-from-dynamic",
 
   // Shared Card Elements
   studioStepTitle: "studio-step-title",
   studioStepIcon: "studio-step-icon",
 
-  // Step 1: Define
+  // Common Define fields (now in define-common-section)
   labelGestureName: "label-gesture-name",
   gestureNameInput: "gesture-name",
   labelGestureDescription: "label-gesture-description",
@@ -31,15 +52,18 @@ export const elementIdMap = {
   gestureTypeSelect: "gesture-type",
   optionGestureTypeHand: "option-gesture-type-hand",
   optionGestureTypePose: "option-gesture-type-pose",
-  labelSamplesToRecord: "label-samples-to-record",
-  samplesToRecordInput: "samples-to-record",
   labelCameraSource: "label-camera-source",
   studioCameraSelect: "studio-camera-select",
   confirmSetupStartCameraBtn: "confirm-setup-start-camera-btn",
   btnTextConfirmSetup: "btn-text-confirm-setup",
 
-  // Step 2: Record
+  // Static-specific fields
+  labelSamplesToRecord: "label-samples-to-record",
+  samplesToRecordInput: "samples-to-record",
+  
+  // Record Section (Static)
   studioVideoPlaceholder: "studio-video-placeholder",
+  recordSection: "record-section",
   samplesCounterDisplay: "samples-counter-display",
   samplesPreview: "samples-preview",
   resetSamplesBtn: "reset-samples-btn",
@@ -50,8 +74,10 @@ export const elementIdMap = {
   countdownOverlayText: "countdown-overlay-text",
   backToSetupBtnFromRecord: "back-to-setup-btn-from-record",
   
-  // Step 3: Test
+  // Test Section (Shared)
+  testSection: "test-section",
   liveTestDisplay: "live-test-display",
+  realtimeDistanceDisplay: "realtime-distance-display", // Added for real-time diagnostics
   liveDetectedStatus: "live-detected-status",
   liveConfidenceValue: "live-confidence-value",
   liveRequiredConfidenceValue: "live-required-confidence-value",
@@ -64,6 +90,7 @@ export const elementIdMap = {
   extractedFeaturesDisplay: "extracted-features-display",
   testControlsGroup: "test-controls-group",
   backToSetupBtn: "back-to-setup-btn",
+  backToSetupBtnFromTest: "back-to-setup-btn-from-test",
   btnTextBackToSetup: "btn-text-back-to-setup",
   saveGestureBtn: "save-gesture-btn",
   btnTextSaveGesture: "btn-text-save-gesture",

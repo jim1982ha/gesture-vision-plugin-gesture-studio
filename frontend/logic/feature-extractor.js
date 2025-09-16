@@ -1,152 +1,50 @@
-/* FILE: extensions/plugins/gesture-studio/frontend/logic/feature-extractor.js */
+/* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/logic/feature-extractor.js */
 const MIN_SAMPLES_FOR_STATISTICAL_RELEVANCE = 3;
-const RULE_PRUNING_FACTOR = 0.75;
-const MAX_ABSOLUTE_TOLERANCE_DIST = 0.1; // Max tolerance in normalized coordinates
-const MAX_ABSOLUTE_TOLERANCE_ANGLE = 45.0; // Max tolerance in degrees
+
+// --- Vector Math Utilities (will be embedded in generated file) ---
+const VectorUtils = {
+  subtract: (v1, v2) => ({ x: v1.x - v2.x, y: v1.y - v2.y, z: v1.z - v2.z }),
+  normalize: (v) => {
+    const mag = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+    return mag > 1e-6 ? { x: v.x / mag, y: v.y / mag, z: v.z / mag } : { x: 0, y: 0, z: 0 };
+  },
+  dot: (v1, v2) => v1.x * v2.x + v1.y * v2.y + v1.z * v2.z,
+};
 
 export class FeatureExtractor {
   #gestureType;
   constructor(gestureType) {
-    if (gestureType !== "hand" && gestureType !== "pose")
-      throw new Error("Invalid gesture type.");
+    if (gestureType !== "hand" && gestureType !== "pose") {
+      throw new Error("This feature extractor only supports 'hand' or 'pose' gestures.");
+    }
     this.#gestureType = gestureType;
   }
 
   #calculateStats(values) {
-    const minObserved = Math.min(...values);
-    const maxObserved = Math.max(...values);
-    const range = maxObserved - minObserved;
-    const avg = values.reduce((sum, v) => sum + v, 0) / values.length;
+    if (values.length < 2) return { mean: values[0] || 0, stdDev: 0, variation: 0 };
+    const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
+    const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / (values.length -1);
+    const stdDev = Math.sqrt(variance);
+    const variation = mean > 1e-6 ? stdDev / mean : Infinity;
+    return { mean, stdDev, variation };
+  }
+
+  #getChirality(landmarks) {
+    if (!landmarks || landmarks.length < 21) return 'unknown';
+    return landmarks[17].x < landmarks[5].x ? 'right' : 'left';
+  }
+  
+  /**
+   * Generates a JS file for a DYNAMIC gesture based on calibrated distances.
+   */
+  generateDynamicGestureJsFileContent(definition) {
+    const { metadata, landmark1, landmark2, minDistance, maxDistance } = definition;
+    const checkFnName = metadata.type === 'pose' ? "checkPose" : "checkGesture";
     
-    const variation = avg > 1e-6 ? range / avg : range > 1e-6 ? 1e6 : 0;
-    return { avg, min: minObserved, max: maxObserved, variation };
-  }
-
-  extract(samples, selectedLandmarkIndices = null) {
-    if (!samples || samples.length < MIN_SAMPLES_FOR_STATISTICAL_RELEVANCE) {
-      console.warn( `[FeatureExtractor] Need ${ MIN_SAMPLES_FOR_STATISTICAL_RELEVANCE } samples, got ${samples?.length || 0}.` );
-      return null;
-    }
-
-    const focusPointsForDisplay =
-      selectedLandmarkIndices && selectedLandmarkIndices.size > 0
-        ? selectedLandmarkIndices
-        : this.#getFallbackFocusPoints(samples);
-
-    const allPotentialRules = [];
-    const ruleGroups =
-      this.#gestureType === "hand"
-        ? this.#getHandRuleGroups()
-        : this.#getPoseRuleGroups();
-
-    const addRule = (ruleDef, type) => {
-      const values = samples
-        .map((s) =>
-          type === "distance"
-            ? self.GestureUtils.calculateDistance(
-                s.landmarks[ruleDef.p1],
-                s.landmarks[ruleDef.p2]
-              )
-            : self.GestureUtils.calculateAngle(
-                s.landmarks[ruleDef.p1],
-                s.landmarks[ruleDef.p2],
-                s.landmarks[ruleDef.p3]
-              )
-        )
-        .filter((v) => v !== null && isFinite(v));
-
-      if (values.length >= MIN_SAMPLES_FOR_STATISTICAL_RELEVANCE) {
-        allPotentialRules.push({
-          type: type,
-          points: ruleDef,
-          stats: this.#calculateStats(values),
-        });
-      }
-    };
-
-    ruleGroups.relativeDistances.forEach((indices) =>
-      addRule({ p1: indices[0], p2: indices[1] }, "distance")
-    );
-    ruleGroups.jointAngles.forEach((indices) =>
-      addRule(
-        { p1: indices[0], p2: indices[1], p3: indices[2] },
-        "angle"
-      )
-    );
-
-    allPotentialRules.sort((a, b) => a.stats.variation - b.stats.variation);
-
-    const numberOfRulesToKeep = Math.max(
-      5,
-      Math.floor(allPotentialRules.length * RULE_PRUNING_FACTOR)
-    );
-    const bestRules = allPotentialRules.slice(0, numberOfRulesToKeep);
-
-    const finalExtractedRules = {
-      type: this.#gestureType,
-      relativeDistances: [],
-      jointAngles: [],
-    };
-
-    bestRules.forEach((rule) => {
-      const ruleData = { ...rule.points, ...rule.stats };
-      delete ruleData.variation;
-      if (rule.type === "distance")
-        finalExtractedRules.relativeDistances.push(ruleData);
-      else if (rule.type === "angle")
-        finalExtractedRules.jointAngles.push(ruleData);
-    });
-
-    if (
-      finalExtractedRules.relativeDistances.length === 0 &&
-      finalExtractedRules.jointAngles.length === 0
-    ) {
-      console.warn("[FeatureExtractor] No valid rules could be generated.");
-      return null;
-    }
-
-    return {
-      rules: finalExtractedRules,
-      focusPoints: Array.from(focusPointsForDisplay),
-    };
-  }
-
-  #getFallbackFocusPoints(samples) {
-    const numLandmarks =
-      this.#gestureType === "hand"
-        ? self.GestureUtils.HandLandmarks.PINKY_TIP + 1
-        : self.GestureUtils.PoseLandmarks.RIGHT_FOOT_INDEX + 1;
-    const landmarkVariations = Array(numLandmarks)
-      .fill(0)
-      .map(() => ({ x: [], y: [] }));
-
-    samples.forEach((sample) => {
-      for (let i = 0; i < numLandmarks; i++) {
-        if (sample.landmarks[i]) {
-          landmarkVariations[i].x.push(sample.landmarks[i].x);
-          landmarkVariations[i].y.push(sample.landmarks[i].y);
-        }
-      }
-    });
-
-    const landmarkMovementScores = landmarkVariations.map((v, i) => {
-      if (v.x.length < 2) return { index: i, score: 0 };
-      const rangeX = Math.max(...v.x) - Math.min(...v.x);
-      const rangeY = Math.max(...v.y) - Math.min(...v.y);
-      return { index: i, score: rangeX + rangeY };
-    });
-    landmarkMovementScores.sort((a, b) => b.score - a.score);
-    const numFocusPoints = this.#gestureType === "hand" ? 12 : 16;
-    return new Set(
-      landmarkMovementScores.slice(0, numFocusPoints).map((item) => item.index)
-    );
-  }
-
-  generateJsFileContent(definition) {
-    const { metadata, rules } = definition;
-    const checkFn = metadata.type === "pose" ? "checkPose" : "checkGesture";
-    
-    const rulesJsonString = JSON.stringify(rules, null, 2);
+    // Default to hand landmarks 5 to 8, or shoulder landmarks 11 to 12 for pose
+    const [ref1, ref2, knownDist] = metadata.type === 'hand' 
+      ? [5, 8, 9.0] // INDEX_FINGER_MCP to INDEX_FINGER_TIP, assumed 9cm
+      : [11, 12, 25.0]; // LEFT_SHOULDER to RIGHT_SHOULDER, assumed 25cm
 
     return `// Custom Gesture: ${metadata.name} (Type: ${metadata.type})
 // Description: ${metadata.description}
@@ -157,76 +55,281 @@ export const metadata = {
   "type": "${metadata.type}"
 };
 
-const MAX_ABSOLUTE_TOLERANCE_DIST = ${MAX_ABSOLUTE_TOLERANCE_DIST};
-const MAX_ABSOLUTE_TOLERANCE_ANGLE = ${MAX_ABSOLUTE_TOLERANCE_ANGLE};
-const baseRules = ${rulesJsonString};
+export const baseRules = {
+  "type": "${metadata.type}",
+  "chirality": "none",
+  "vectors": [],
+  "relativePositions": [],
+  "focusPoints": [${landmark1}, ${landmark2}]
+};
 
-function applyToleranceToRule(rule, isAngle, tolerance) {
-    const { avg, min: minObserved, max: maxObserved } = rule;
-    
-    // The inherent variance of the recorded samples.
-    const observedRange = maxObserved - minObserved;
-    
-    // The maximum possible extra tolerance we can add.
-    const maxAddedTolerance = isAngle ? MAX_ABSOLUTE_TOLERANCE_ANGLE : MAX_ABSOLUTE_TOLERANCE_DIST;
-    
-    // Use an easing curve for smoother control.
-    const easedTolerance = Math.pow(tolerance, 1.5);
-    
-    // The final range is the inherent variance PLUS an additional amount controlled by the slider.
-    const finalRange = observedRange + (maxAddedTolerance * easedTolerance);
-    const toleranceAmount = finalRange / 2;
+/**
+ * Custom gesture detection using real-world unit calibration.
+ * @param {object[]} landmarks - 2D screen-space landmarks from MediaPipe.
+ * @param {object[]} worldLandmarks - 3D world-space landmarks (not used).
+ * @param {number} tolerance - The required confidence threshold from the UI (0.0 to 1.0).
+ * @returns {{detected: boolean, confidence: number, requiredConfidence: number}} The detection result.
+ */
+export function ${checkFnName}(landmarks, worldLandmarks, tolerance = 0.5) {
+  // --- Easily Editable Calibration Constants ---
+  const REFERENCE_LANDMARK_1 = ${ref1};
+  const REFERENCE_LANDMARK_2 = ${ref2};
+  const KNOWN_REAL_WORLD_DISTANCE_CM = ${knownDist};
+  // -----------------------------------------
 
-    const center = (minObserved + maxObserved) / 2;
-    const newMin = Math.max(0, center - toleranceAmount);
-    const newMax = center + toleranceAmount;
+  const p1_idx = ${landmark1};
+  const p2_idx = ${landmark2};
 
-    return { ...rule, min: newMin, max: newMax };
+  if (!landmarks || landmarks.length < Math.max(p1_idx, p2_idx, REFERENCE_LANDMARK_1, REFERENCE_LANDMARK_2) + 1) {
+    return { detected: false, confidence: 0 };
+  }
+
+  const p1 = landmarks[p1_idx];
+  const p2 = landmarks[p2_idx];
+  const ref1 = landmarks[REFERENCE_LANDMARK_1];
+  const ref2 = landmarks[REFERENCE_LANDMARK_2];
+
+  if (!p1 || !p2 || !ref1 || !ref2) {
+    return { detected: false, confidence: 0 };
+  }
+
+  const vectorDistance = (v1, v2) => {
+    const dx = v1.x - v2.x;
+    const dy = v1.y - v2.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const measuredPixelDistance = vectorDistance(p1, p2);
+  const referencePixelDistance = vectorDistance(ref1, ref2);
+
+  if (referencePixelDistance < 1e-6) {
+    return { detected: false, confidence: 0 };
+  }
+  
+  const pixelsPerCm = referencePixelDistance / KNOWN_REAL_WORLD_DISTANCE_CM;
+  const estimatedDistanceCm = measuredPixelDistance / pixelsPerCm;
+
+  // --- Map the calculated distance to a confidence score ---
+  const minDistanceCm = ${minDistance}; // Calibrated minimum distance in CM
+  const maxDistanceCm = ${maxDistance}; // Calibrated maximum distance in CM
+
+  let confidence = 0.0;
+  if (estimatedDistanceCm > minDistanceCm && maxDistanceCm > minDistanceCm) {
+    confidence = (estimatedDistanceCm - minDistanceCm) / (maxDistanceCm - minDistanceCm);
+  }
+
+  confidence = Math.max(0, Math.min(1.0, confidence));
+
+  return {
+    detected: confidence >= tolerance,
+    confidence: confidence,
+    requiredConfidence: tolerance
+  };
+}
+`;
+  }
+
+  /**
+   * Extracts features for a STATIC gesture from multiple samples.
+   */
+  extract(samples, selectedLandmarkIndices = new Set()) {
+    if (!samples || samples.length < MIN_SAMPLES_FOR_STATISTICAL_RELEVANCE) {
+      console.warn(`[FeatureExtractor] Need ${MIN_SAMPLES_FOR_STATISTICAL_RELEVANCE} samples, got ${samples?.length || 0}.`);
+      return null;
+    }
+    
+    const allPotentialVectorRules = [];
+    const allPotentialPositionRules = [];
+    const landmarksCount = this.#gestureType === 'hand' ? 21 : 33;
+    const recordedChirality = this.#gestureType === 'hand' ? this.#getChirality(samples[0].landmarks2d) : 'none';
+
+    for (let i = 0; i < landmarksCount; i++) {
+        for (let j = i + 1; j < landmarksCount; j++) {
+            const p1Index = i, p2Index = j;
+            
+            const vectors = samples.map(s => {
+                const worldLandmarks = s.landmarks3d;
+                if (!worldLandmarks || !worldLandmarks[p1Index] || !worldLandmarks[p2Index]) return null;
+                const vec = VectorUtils.subtract(worldLandmarks[p1Index], worldLandmarks[p2Index]);
+                return VectorUtils.normalize(vec);
+            }).filter(Boolean);
+
+            if (vectors.length >= MIN_SAMPLES_FOR_STATISTICAL_RELEVANCE) {
+                const xStats = this.#calculateStats(vectors.map(v => v.x));
+                const yStats = this.#calculateStats(vectors.map(v => v.y));
+                const zStats = this.#calculateStats(vectors.map(v => v.z));
+                const isPrioritized = selectedLandmarkIndices.size > 0 && (selectedLandmarkIndices.has(p1Index) || selectedLandmarkIndices.has(p2Index));
+                allPotentialVectorRules.push({ 
+                    points: { p1: p1Index, p2: p2Index }, stats: { x: xStats, y: yStats, z: zStats },
+                    totalVariation: xStats.variation + yStats.variation + zStats.variation, priority: isPrioritized ? 0 : 1
+                });
+            }
+
+            const positions = samples.map(s => {
+                const screenLandmarks = s.landmarks2d;
+                if (!screenLandmarks || !screenLandmarks[p1Index] || !screenLandmarks[p2Index]) return null;
+                return { dx: screenLandmarks[p1Index].x - screenLandmarks[p2Index].x, dy: screenLandmarks[p1Index].y - screenLandmarks[p2Index].y };
+            }).filter(Boolean);
+
+            if (positions.length >= MIN_SAMPLES_FOR_STATISTICAL_RELEVANCE) {
+                const dxStats = this.#calculateStats(positions.map(p => p.dx));
+                const dyStats = this.#calculateStats(positions.map(p => p.dy));
+                if (dxStats.stdDev < 0.05) allPotentialPositionRules.push({ points: { p1: p1Index, p2: p2Index }, axis: 'x', stats: dxStats });
+                if (dyStats.stdDev < 0.05) allPotentialPositionRules.push({ points: { p1: p1Index, p2: p2Index }, axis: 'y', stats: dyStats });
+            }
+        }
+    }
+
+    allPotentialVectorRules.sort((a, b) => (a.priority !== b.priority) ? a.priority - b.priority : a.totalVariation - b.totalVariation);
+    const bestVectorRules = allPotentialVectorRules.slice(0, Math.max(8, Math.min(allPotentialVectorRules.length, 25)));
+    
+    const finalExtractedRules = { type: this.#gestureType, chirality: recordedChirality, vectors: [], relativePositions: [] };
+    
+    bestVectorRules.forEach(rule => {
+        finalExtractedRules.vectors.push({ 
+            p1: rule.points.p1, p2: rule.points.p2, 
+            meanX: rule.stats.x.mean, stdDevX: rule.stats.x.stdDev,
+            meanY: rule.stats.y.mean, stdDevY: rule.stats.y.stdDev,
+            meanZ: rule.stats.z.mean, stdDevZ: rule.stats.z.stdDev,
+        });
+    });
+
+    allPotentialPositionRules.sort((a,b) => a.stats.stdDev - b.stats.stdDev);
+    finalExtractedRules.relativePositions = allPotentialPositionRules.slice(0, 5).map(rule => ({
+        p1: rule.points.p1, p2: rule.points.p2, axis: rule.axis,
+        mean: rule.stats.mean, stdDev: rule.stats.stdDev,
+    }));
+
+    if (finalExtractedRules.vectors.length === 0 && finalExtractedRules.relativePositions.length === 0) {
+        console.warn("[FeatureExtractor] No valid rules could be generated.");
+        return null;
+    }
+    
+    const allUsedPoints = new Set([
+        ...bestVectorRules.flatMap(r => [r.points.p1, r.points.p2]),
+        ...finalExtractedRules.relativePositions.flatMap(r => [r.p1, r.p2])
+    ]);
+    const focusPoints = selectedLandmarkIndices.size > 0 ? Array.from(selectedLandmarkIndices) : Array.from(allUsedPoints);
+
+    return { rules: finalExtractedRules, focusPoints };
+  }
+  
+  /**
+   * Generates a JS file for a STATIC gesture based on statistical analysis.
+   */
+  generateStaticGestureJsFileContent(definition) {
+    const { metadata, rules, focusPoints } = definition;
+    const checkFnName = metadata.type === 'pose' ? "checkPose" : "checkGesture";
+    const finalRules = { ...rules, focusPoints: focusPoints || [] };
+    const rulesJsonString = JSON.stringify(finalRules, null, 2);
+
+    return `// Custom Gesture: ${metadata.name} (Type: ${metadata.type})
+// Description: ${metadata.description}
+// Generated by GestureVision Studio on ${new Date().toLocaleDateString()}
+export const metadata = {
+  "name": "${metadata.name}",
+  "description": "${metadata.description}",
+  "type": "${metadata.type}"
+};
+
+export const baseRules = ${rulesJsonString};
+
+// --- Core Detection Logic ---
+const STD_DEV_MULTIPLIER = 3.5;
+const VectorUtils = {
+  subtract: (v1, v2) => ({ x: v1.x - v2.x, y: v1.y - v2.y, z: v1.z - v2.z }),
+  normalize: (v) => {
+    const mag = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+    return mag > 1e-6 ? { x: v.x / mag, y: v.y / mag, z: v.z / mag } : { x: 0, y: 0, z: 0 };
+  }
+};
+
+function getVectorConfidence(liveVec, rule) {
+  const meanVec = { x: rule.meanX, y: rule.meanY, z: rule.meanZ };
+  const stdDevVec = { x: rule.stdDevX, y: rule.stdDevY, z: rule.stdDevZ };
+  const zScoreX = stdDevVec.x > 1e-6 ? Math.abs(liveVec.x - meanVec.x) / stdDevVec.x : 0;
+  const zScoreY = stdDevVec.y > 1e-6 ? Math.abs(liveVec.y - meanVec.y) / stdDevVec.y : 0;
+  const zScoreZ = stdDevVec.z > 1e-6 ? Math.abs(liveVec.z - meanVec.z) / stdDevVec.z : 0;
+  const maxZScore = Math.max(zScoreX, zScoreY, zScoreZ);
+  if (maxZScore > STD_DEV_MULTIPLIER) return 0.0;
+  return Math.exp(-0.5 * Math.pow(maxZScore, 2));
 }
 
-export function ${checkFn}(_landmarks, _worldLandmarks, tolerance = 0.0) {
-  const finalRules = {
-      ...baseRules,
-      relativeDistances: baseRules.relativeDistances.map(r => applyToleranceToRule(r, false, tolerance)),
-      jointAngles: baseRules.jointAngles.map(r => applyToleranceToRule(r, true, tolerance)),
-  };
-  return { rules: finalRules };
-}`;
+function getPositionConfidence(liveDelta, rule) {
+    if (rule.stdDev < 1e-6) return Math.abs(liveDelta - rule.mean) < 1e-6 ? 1.0 : 0.0;
+    const zScore = Math.abs(liveDelta - rule.mean) / rule.stdDev;
+    if (zScore > STD_DEV_MULTIPLIER) return 0.0;
+    return Math.exp(-0.5 * Math.pow(zScore, 2));
+}
+
+function getLiveChirality(landmarks) {
+    if (!landmarks || landmarks.length < 21) return 'unknown';
+    return landmarks[17].x < landmarks[5].x ? 'right' : 'left';
+}
+
+export function ${checkFnName}(landmarks, worldLandmarks, tolerance = 0.0) {
+  if (!worldLandmarks || worldLandmarks.length === 0) {
+    return { detected: false, confidence: 0 };
+  }
+  const { vectors = [], relativePositions = [], focusPoints = [], chirality: recordedChirality } = baseRules;
+  const ruleScores = [];
+
+  const liveChirality = getLiveChirality(landmarks);
+  const needsFlip = recordedChirality !== 'none' && liveChirality !== 'unknown' && recordedChirality !== liveChirality;
+
+  const getFlippedVec = (vec) => ({ x: -vec.x, y: vec.y, z: -vec.z });
+  const getFlippedDelta = (delta, axis) => (axis === 'x' ? -delta : delta);
+
+  for (const rule of vectors) {
+    const p1 = worldLandmarks[rule.p1];
+    const p2 = worldLandmarks[rule.p2];
+    if (p1 && p2) {
+      let liveVecNormalized = VectorUtils.normalize(VectorUtils.subtract(p1, p2));
+      if (needsFlip) liveVecNormalized = getFlippedVec(liveVecNormalized);
+      ruleScores.push(getVectorConfidence(liveVecNormalized, rule));
+    } else {
+      ruleScores.push(0.0);
+    }
   }
 
-  #getHandRuleGroups() {
-    const HL = self.GestureUtils.HandLandmarks;
-    return {
-      relativeDistances: [
-        [HL.THUMB_TIP, HL.INDEX_FINGER_TIP],
-        [HL.THUMB_TIP, HL.MIDDLE_FINGER_TIP],
-        [HL.INDEX_FINGER_TIP, HL.PINKY_TIP],
-      ],
-      jointAngles: [
-        [HL.WRIST, HL.THUMB_CMC, HL.THUMB_MCP],
-        [HL.THUMB_CMC, HL.THUMB_MCP, HL.THUMB_IP],
-        [HL.THUMB_MCP, HL.THUMB_IP, HL.THUMB_TIP],
-        [HL.WRIST, HL.INDEX_FINGER_MCP, HL.INDEX_FINGER_PIP],
-        [HL.INDEX_FINGER_MCP, HL.INDEX_FINGER_PIP, HL.INDEX_FINGER_DIP],
-      ],
-    };
+  if (landmarks && landmarks.length > 0) {
+      for (const rule of relativePositions) {
+          const p1 = landmarks[rule.p1];
+          const p2 = landmarks[rule.p2];
+          if (p1 && p2) {
+              let liveDelta = p1[rule.axis] - p2[rule.axis];
+              if (needsFlip) liveDelta = getFlippedDelta(liveDelta, rule.axis);
+              ruleScores.push(getPositionConfidence(liveDelta, rule));
+          } else {
+              ruleScores.push(0.0);
+          }
+      }
   }
-  #getPoseRuleGroups() {
-    const PL = self.GestureUtils.PoseLandmarks;
-    return {
-      relativeDistances: [
-        [PL.LEFT_WRIST, PL.RIGHT_WRIST],
-        [PL.LEFT_SHOULDER, PL.RIGHT_SHOULDER],
-        [PL.LEFT_HIP, PL.RIGHT_HIP],
-        [PL.NOSE, PL.LEFT_HIP],
-        [PL.NOSE, PL.RIGHT_HIP],
-      ],
-      jointAngles: [
-        [PL.LEFT_SHOULDER, PL.LEFT_ELBOW, PL.LEFT_WRIST],
-        [PL.RIGHT_SHOULDER, PL.RIGHT_ELBOW, PL.RIGHT_WRIST],
-        [PL.LEFT_ELBOW, PL.LEFT_SHOULDER, PL.LEFT_HIP],
-        [PL.RIGHT_ELBOW, PL.RIGHT_SHOULDER, PL.RIGHT_HIP],
-      ],
-    };
+
+  if (ruleScores.length === 0) return { detected: false, confidence: 0 };
+  
+  const shapeConfidence = ruleScores.reduce((sum, score) => sum + score, 0) / ruleScores.length;
+
+  let visibilityScore = 1.0;
+  if (landmarks && landmarks.length > 0 && focusPoints.length > 0) {
+      let totalVisibility = 0;
+      let visibleCount = 0;
+      for (const index of focusPoints) {
+          if (landmarks[index]) {
+              totalVisibility += landmarks[index].presence ?? landmarks[index].visibility ?? 1.0;
+              visibleCount++;
+          }
+      }
+      visibilityScore = visibleCount > 0 ? totalVisibility / visibleCount : 0.0;
+  }
+  
+  const finalConfidence = shapeConfidence * visibilityScore;
+  
+  return {
+    detected: finalConfidence >= tolerance,
+    confidence: finalConfidence,
+    requiredConfidence: tolerance
+  };
+}`;
   }
 }

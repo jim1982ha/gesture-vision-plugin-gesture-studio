@@ -19,9 +19,9 @@ export class LandmarkSelector {
   #setIcon;
   #context;
   #boundEscapeHandler;
+  #selectionMode = 'multiple'; // 'multiple' or 'two_points'
 
-  constructor({ onConfirm, onCancel, translate, setIcon, context }) {
-    this.#onConfirm = onConfirm;
+  constructor({ onCancel, translate, setIcon, context }) {
     this.#onCancel = onCancel;
     this.#translate = translate;
     this.#setIcon = setIcon;
@@ -89,10 +89,15 @@ export class LandmarkSelector {
     this.#context.services.pubsub.unsubscribe('escape-for-landmark-selector', this.#boundEscapeHandler);
   }
 
-  show(sample, initialSelection) {
+  show({ sample, initialSelection, selectionMode, onConfirm }) {
     if (!this.#modalElement) return;
     this.#currentSample = sample;
     this.#selectedIndices = new Set(initialSelection);
+    this.#selectionMode = selectionMode || 'multiple';
+    this.#onConfirm = onConfirm; // Set the specific confirm callback for this session
+    
+    this.#modalElement.querySelector("#landmark-select-all-btn").style.display = this.#selectionMode === 'multiple' ? 'flex' : 'none';
+    this.#modalElement.querySelector("#landmark-deselect-all-btn").style.display = this.#selectionMode === 'multiple' ? 'flex' : 'none';
 
     this.#modalElement.classList.remove("hidden");
     this.#modalElement.classList.add("visible");
@@ -117,15 +122,22 @@ export class LandmarkSelector {
 
     if (wasCancelled && this.#onCancel) this.#onCancel();
   }
-
+  
   #draw = async () => {
-    if (!this.#currentSample || !this.#ctx) return;
-    const { imageData, landmarks, isMirrored } = this.#currentSample;
+    if (!this.#ctx || !this.#currentSample) return;
+    
+    const { imageData, landmarks2d, isMirrored } = this.#currentSample;
     const canvas = this.#canvas;
 
+    // Guard clause: If there's no image data or landmarks, we can't draw anything.
+    if (!imageData || !landmarks2d) {
+        this.#ctx.clearRect(0, 0, canvas.width, canvas.height);
+        console.warn("[LandmarkSelector] Cannot draw: sample is missing imageData or landmarks2d.");
+        return;
+    }
+    
     const imgAspectRatio = imageData.width / imageData.height;
-    const canvasAspectRatio =
-      canvas.parentElement.clientWidth / canvas.parentElement.clientHeight;
+    const canvasAspectRatio = canvas.parentElement.clientWidth / canvas.parentElement.clientHeight;
 
     if (imgAspectRatio > canvasAspectRatio) {
       canvas.width = canvas.parentElement.clientWidth;
@@ -153,11 +165,8 @@ export class LandmarkSelector {
       return;
     }
     
-    if (isMirrored) this.#ctx.restore();
-
-    landmarks.forEach((lm, index) => {
-      const landmarkX = isMirrored ? 1 - lm.x : lm.x;
-      const x = landmarkX * canvas.width;
+    landmarks2d.forEach((lm, index) => {
+      const x = lm.x * canvas.width;
       const y = lm.y * canvas.height;
 
       this.#ctx.beginPath();
@@ -170,23 +179,28 @@ export class LandmarkSelector {
 
       this.#ctx.fill();
     });
+
+    if (isMirrored) {
+      this.#ctx.restore();
+    }
   };
 
   #handleMouseMove = (e) => {
-    if (!this.#currentSample) return;
+    const landmarks = this.#currentSample?.landmarks2d;
+    if (!landmarks) return;
 
     const isMirrored = this.#currentSample.isMirrored;
     const rect = this.#canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+    const mouseXCanvas = e.clientX - rect.left;
+    const mouseYCanvas = e.clientY - rect.top;
 
     let foundIndex = -1;
-    for (let i = 0; i < this.#currentSample.landmarks.length; i++) {
-        const lm = this.#currentSample.landmarks[i];
+    for (let i = 0; i < landmarks.length; i++) {
+        const lm = landmarks[i];
         const landmarkX = isMirrored ? 1 - lm.x : lm.x;
         const lmX = landmarkX * this.#canvas.width;
         const lmY = lm.y * this.#canvas.height;
-        if (Math.sqrt((mouseX - lmX) ** 2 + (mouseY - lmY) ** 2) < LANDMARK_RADIUS + 2) {
+        if (Math.sqrt((mouseXCanvas - lmX) ** 2 + (mouseYCanvas - lmY) ** 2) < LANDMARK_RADIUS + 2) {
             foundIndex = i;
             break;
         }
@@ -199,18 +213,31 @@ export class LandmarkSelector {
   };
 
   #handleClick = () => {
-    if (this.#hoveredIndex !== -1) {
-      if (this.#selectedIndices.has(this.#hoveredIndex))
+    if (this.#hoveredIndex === -1) return;
+
+    if (this.#selectionMode === 'two_points') {
+      if (this.#selectedIndices.has(this.#hoveredIndex)) {
         this.#selectedIndices.delete(this.#hoveredIndex);
-      else this.#selectedIndices.add(this.#hoveredIndex);
-      this.#draw();
+      } else if (this.#selectedIndices.size < 2) {
+        this.#selectedIndices.add(this.#hoveredIndex);
+      }
+      if (this.#selectedIndices.size === 2) {
+        this.#handleConfirm();
+      }
+    } else { // 'multiple' mode
+      if (this.#selectedIndices.has(this.#hoveredIndex)) {
+        this.#selectedIndices.delete(this.#hoveredIndex);
+      } else {
+        this.#selectedIndices.add(this.#hoveredIndex);
+      }
     }
+    this.#draw();
   };
 
   #selectAll = () => {
     if (!this.#currentSample) return;
     this.#selectedIndices = new Set(
-      Array.from({ length: this.#currentSample.landmarks.length }, (_, i) => i)
+      Array.from({ length: this.#currentSample.landmarks2d.length }, (_, i) => i)
     );
     this.#draw();
   };

@@ -1,46 +1,43 @@
-/* FILE: extensions/plugins/gesture-studio/frontend/logic/studio-live-tester.js */
+/* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/logic/studio-live-tester.js */
 /**
- * Manages the live testing phase of the Gesture Studio.
+ * Manages the live testing phase of the Gesture Studio on the main thread.
+ * It is now a simple executor for a pre-compiled check function.
  */
 export class StudioLiveTester {
-  #baseRulesForTesting = null;
-  #currentTolerance = 0.2;
-  #gestureProcessorRef = null;
+  #checkFunction = null;
 
-  constructor() {
-    // Constructor logic can be added here if needed in the future.
-  }
+  constructor() {}
 
   /**
-   * Starts the live test mode.
-   * @param {object} rules - The generated gesture rules to test against.
-   * @param {number} initialTolerance - The initial tolerance value from the slider.
-   * @param {object} gestureProcessor - Reference to the main gesture processor.
+   * Starts the live test mode by storing a ready-to-use check function.
+   * @param {function} checkFunction - The compiled function to execute on each frame.
    */
-  start(rules, initialTolerance, gestureProcessor) {
-    this.#baseRulesForTesting = rules;
-    this.#currentTolerance = initialTolerance;
-    this.#gestureProcessorRef = gestureProcessor;
-    
-    // The processor is set to test mode, which will trigger the GESTURE_EVENTS.TEST_RESULT event.
-    // The main studio-app.js controller listens for this event.
-    this.#gestureProcessorRef?.setTestMode(this.#baseRulesForTesting, this.#currentTolerance);
+  start(checkFunction) {
+    this.#checkFunction = checkFunction;
   }
 
-  /**
-   * Stops the live test mode.
-   */
   stop() {
-    this.#baseRulesForTesting = null;
-    this.#gestureProcessorRef?.stopTestMode();
+    this.#checkFunction = null;
   }
 
   /**
-   * Updates the tolerance used for live testing.
-   * @param {number} newTolerance - The new tolerance value.
+   * Executes the stored check function against live landmark data.
+   * @param {object[]} landmarks - The 2D screen-space landmarks.
+   * @param {object[]} worldLandmarks - The 3D world-space landmarks.
+   * @returns The detection result from the check function.
    */
-  updateTolerance(newTolerance) {
-    this.#currentTolerance = newTolerance;
-    this.#gestureProcessorRef?.setTestMode(this.#baseRulesForTesting, this.#currentTolerance);
+  check(landmarks, worldLandmarks) {
+    if (typeof this.#checkFunction !== 'function') {
+      return { detected: false, confidence: 0, requiredConfidence: 0.0 };
+    }
+  
+    try {
+      // Simply execute the provided function. It has all necessary context (like tolerance) baked in.
+      return this.#checkFunction(landmarks, worldLandmarks);
+    } catch (e) {
+      console.error("[StudioLiveTester] Error during live check execution:", e);
+      this.stop();
+      return { detected: false, confidence: 0, requiredConfidence: 0.0 };
+    }
   }
 }
