@@ -1,0 +1,33 @@
+/* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/style.css */
+#studio-video-placeholder,
+#landmark-selector-canvas-container,
+#studio-analysis-pre,
+#studio-generated-code-textarea {
+    background-color: hsl(var(--color-background));
+}
+
+#studio-controls-panel {
+    background-color: hsl(var(--color-surface));
+    border: 1px solid hsl(var(--color-border));
+}
+
+#live-test-display {
+    background-color: hsl(var(--color-surface) / 0.8);
+    color: hsl(var(--color-text-primary));
+}
+
+#creation-type-selection-section strong,
+#studio-analysis-details,
+#studio-generated-code-details {
+    color: hsl(var(--color-text-primary));
+}
+
+#studio-analysis-details,
+#studio-generated-code-details,
+#studio-calibration-result-box {
+    border: 1px solid hsl(var(--color-border-light));
+}
+
+#studio-calibration-result-box {
+    background-color: hsl(var(--color-background));
+}
