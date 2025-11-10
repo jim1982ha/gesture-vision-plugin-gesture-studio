@@ -34,7 +34,9 @@ export const LandmarkSelector = ({ show, onClose, onConfirm, sample, selectionMo
         
         const { imageData, landmarks2d, isMirrored } = sample;
         
-        createImageBitmap(imageData).then(imageBitmap => {
+        // --- MEMORY LEAK FIX: Explicit Cleanup for ImageBitmap ---
+        const imageBitmapPromise = createImageBitmap(imageData);
+        imageBitmapPromise.then(imageBitmap => {
             const imgAspectRatio = imageData.width / imageData.height;
             const parent = canvas.parentElement!;
             const canvasAspectRatio = parent.clientWidth / parent.clientHeight;
@@ -61,6 +63,9 @@ export const LandmarkSelector = ({ show, onClose, onConfirm, sample, selectionMo
                 else ctx.fillStyle = COLORS.default;
                 ctx.fill();
             });
+
+            // Close the ImageBitmap to release memory after it's been used for drawing.
+            imageBitmap.close();
         });
     }, [sample, selectedIndices, hoveredIndex]);
 
@@ -132,4 +137,4 @@ export const LandmarkSelector = ({ show, onClose, onConfirm, sample, selectionMo
             </div>
         </div>
     );
-};
+}

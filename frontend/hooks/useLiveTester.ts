@@ -1,3 +1,4 @@
+// extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/hooks/useLiveTester.ts
 import { useState, useCallback, useRef, useEffect, useContext } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import { GESTURE_EVENTS } from '#shared/index.js';
@@ -19,6 +20,7 @@ export const useLiveTester = (codeString: string | null, gestureType: GestureTyp
     const checkFunctionRef = useRef<CheckFunction | null>(null);
 
     useEffect(() => {
+        let objectUrl: string | null = null;
         if (!codeString) {
             checkFunctionRef.current = null;
             return;
@@ -26,18 +28,27 @@ export const useLiveTester = (codeString: string | null, gestureType: GestureTyp
 
         try {
             const blob = new Blob([codeString], { type: 'application/javascript' });
-            const url = URL.createObjectURL(blob);
-            import(/* @vite-ignore */ url).then(module => {
+            objectUrl = URL.createObjectURL(blob);
+            import(/* @vite-ignore */ objectUrl).then(module => {
                 if (module.baseRules) {
                     checkFunctionRef.current = null;
                 } else { 
                     checkFunctionRef.current = gestureType === 'pose' ? module.checkPose : module.checkGesture;
                 }
-            }).finally(() => URL.revokeObjectURL(url));
+            });
         } catch (e) {
             console.error("[LiveTester] Error compiling gesture code:", e);
             checkFunctionRef.current = null;
         }
+        
+        // --- MEMORY LEAK FIX: Cleanup Logic for Blob URL ---
+        // Revoke the object URL when the component unmounts or the code string changes,
+        // preventing memory leaks from orphaned blob objects.
+        return () => {
+            if (objectUrl) {
+                URL.revokeObjectURL(objectUrl);
+            }
+        };
     }, [codeString, gestureType]);
 
     useEffect(() => {

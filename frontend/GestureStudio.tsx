@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+/* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/GestureStudio.tsx */
+import { useState, useEffect } from 'react';
 import type { PluginUIContext } from '#frontend/types/index.js';
 import { setIcon } from '#frontend/ui/helpers/ui-helpers.js';
 import { useStudioCamera } from './hooks/useStudioCamera.js';
@@ -29,15 +30,12 @@ export const GestureStudio = ({ context, onClose }: { context: PluginUIContext, 
     const { startCamera, stopAndRestoreCamera } = useStudioCamera(context);
 
     useEffect(() => {
-        context.coreStateManager.getState().actions.pushToModalStack('gesture-studio');
-        const handleKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-        document.addEventListener('keydown', handleKeyDown);
+        // This effect now only handles camera cleanup when the component unmounts.
+        // Modal stack management is handled by the actions that open/close this component.
         return () => {
-            document.removeEventListener('keydown', handleKeyDown);
-            context.coreStateManager.getState().actions.removeFromModalStack('gesture-studio');
             stopAndRestoreCamera();
         };
-    }, [onClose, context, stopAndRestoreCamera]);
+    }, [stopAndRestoreCamera]);
 
     const { translate } = context.services.translationService;
 
@@ -82,14 +80,28 @@ export const GestureStudio = ({ context, onClose }: { context: PluginUIContext, 
         setStep('select_type');
     };
 
+    const isInitialStep = step === 'select_type';
+
     const renderStepContent = () => {
         if (!sessionData) {
             return (
                 <div id="creation-type-selection-section">
-                    <p className="form-label">{translate("studioCreationTypeTitle")}</p>
-                    <div className="mt-2 grid grid-cols-1 gap-2">
-                        <button onClick={() => handleCreationTypeSelect('static')} className="btn btn-secondary !h-auto !p-3 !items-start !text-left"><div className="flex flex-col"><strong>{translate("studioCreationTypeStatic")}</strong><small>{translate("studioCreationTypeStaticDesc")}</small></div></button>
-                        <button onClick={() => handleCreationTypeSelect('dynamic')} className="btn btn-secondary !h-auto !p-3 !items-start !text-left"><div className="flex flex-col"><strong>{translate("studioCreationTypeDynamic")}</strong><small>{translate("studioCreationTypeDynamicDesc")}</small></div></button>
+                    <p id="studio-welcome-prompt" className="form-label text-center text-base mb-4">{translate("studioCreationTypeTitle")}</p>
+                    <div id="studio-welcome-options" className="mt-2 grid grid-cols-1 gap-4">
+                        <button id="studio-select-static-button" onClick={() => handleCreationTypeSelect('static')} className="selection-card">
+                            <span ref={el => el && setIcon(el, 'UI_GESTURE')} className="text-3xl text-primary"></span>
+                            <div className="flex flex-col text-left">
+                                <strong className="font-semibold text-text-primary">{translate("studioCreationTypeStatic")}</strong>
+                                <small className="text-text-secondary">{translate("studioCreationTypeStaticDesc")}</small>
+                            </div>
+                        </button>
+                        <button id="studio-select-dynamic-button" onClick={() => handleCreationTypeSelect('dynamic')} className="selection-card">
+                            <span ref={el => el && setIcon(el, 'UI_ANALYZE')} className="text-3xl text-primary"></span>
+                            <div className="flex flex-col text-left">
+                                <strong className="font-semibold text-text-primary">{translate("studioCreationTypeDynamic")}</strong>
+                                <small className="text-text-secondary">{translate("studioCreationTypeDynamicDesc")}</small>
+                            </div>
+                        </button>
                     </div>
                 </div>
             );
@@ -106,25 +118,33 @@ export const GestureStudio = ({ context, onClose }: { context: PluginUIContext, 
     return (
         <div id="gesture-studio-modal" className="modal visible" role="dialog" aria-modal="true">
             <div className="modal-content !max-w-6xl h-[90vh]">
-                <div className="modal-header">
+                <div id="gesture-studio-modal-header" className="modal-header">
                     <span ref={el => el && setIcon(el, 'gesture')} className="header-icon material-icons"></span>
-                    <span className="header-title">{translate('pluginStudioName')}</span>
-                    <button onClick={onClose} className="btn btn-icon header-close-btn" aria-label="Close">
+                    <span id="gesture-studio-modal-title" className="header-title">{translate('pluginStudioName')}</span>
+                    <button id="gesture-studio-modal-close-button" onClick={onClose} className="btn btn-icon header-close-btn" aria-label="Close">
                         <span ref={el => el && setIcon(el, 'UI_CLOSE')}></span>
                     </button>
                 </div>
-                <div className="modal-scrollable-content p-2 desktop:p-4">
-                    <div className="flex flex-col desktop:flex-row gap-4 w-full h-full">
-                        <div className="flex-grow-[2] min-w-0 min-h-[200px] desktop:min-h-0 relative flex">
-                            <div id="studio-video-placeholder" className="relative flex-grow flex items-center justify-center rounded-md overflow-hidden">
-                                <div id="live-test-display" className="absolute z-10 p-2 rounded-md shadow-lg leading-tight backdrop-blur-sm hidden"></div>
-                            </div>
-                        </div>
-                        <div className="flex-grow min-w-[320px] flex flex-col">
-                            <div id="studio-controls-panel" className="rounded-lg shadow-sm p-3 flex flex-col h-full">
+                <div id="gesture-studio-modal-content-area" className="modal-scrollable-content p-2 desktop:p-4">
+                    <div id="gesture-studio-main-layout" className="flex flex-col desktop:flex-row gap-4 w-full h-full">
+                        {isInitialStep ? (
+                            <div id="gesture-studio-welcome-screen" className="w-full h-full flex items-center justify-center p-4">
                                 {renderStepContent()}
                             </div>
-                        </div>
+                        ) : (
+                            <>
+                                <div id="gesture-studio-video-wrapper" className="flex-grow-[2] min-w-0 min-h-[200px] desktop:min-h-0 relative flex">
+                                    <div id="studio-video-placeholder" className="relative flex-grow flex items-center justify-center rounded-md overflow-hidden bg-background">
+                                        <div id="live-test-display" className="absolute z-10 p-2 rounded-md shadow-lg leading-tight backdrop-blur-sm hidden"></div>
+                                    </div>
+                                </div>
+                                <div id="gesture-studio-controls-wrapper" className="flex-grow min-w-[320px] flex flex-col">
+                                    <div id="studio-controls-panel" className="rounded-lg shadow-sm p-3 flex flex-col h-full">
+                                        {renderStepContent()}
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>

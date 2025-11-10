@@ -2,11 +2,13 @@
 #studio-video-placeholder,
 #landmark-selector-canvas-container,
 #studio-analysis-pre,
-#studio-generated-code-textarea {
+#studio-generated-code-textarea,
+#gesture-studio-welcome-screen {
     background-color: hsl(var(--color-background));
 }
 
-#studio-controls-panel {
+#studio-controls-panel,
+.selection-card {
     background-color: hsl(var(--color-surface));
     border: 1px solid hsl(var(--color-border));
 }
@@ -30,4 +32,16 @@
 
 #studio-calibration-result-box {
     background-color: hsl(var(--color-background));
+}
+
+/* New styles for the selection cards on the welcome screen */
+.selection-card {
+    @apply flex items-center gap-4 p-4 rounded-lg w-full max-w-md transition-all duration-200 ease-in-out cursor-pointer;
+    box-shadow: var(--shadow-depth-sm);
+}
+
+.selection-card:hover {
+    border-color: hsl(var(--color-primary));
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-depth-md);
 }

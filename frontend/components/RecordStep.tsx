@@ -21,10 +21,14 @@ const SampleCanvas = ({ sample }: { sample: SnapshotData }) => {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
         
-        createImageBitmap(sample.imageData).then(imageBitmap => {
+        const imageBitmapPromise = createImageBitmap(sample.imageData);
+        imageBitmapPromise.then(imageBitmap => {
             if (sample.isMirrored) { ctx.save(); ctx.scale(-1, 1); ctx.translate(-canvas.width, 0); }
             ctx.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
             if (sample.isMirrored) { ctx.restore(); }
+            // --- MEMORY LEAK FIX: Explicit Cleanup ---
+            // Close the ImageBitmap to release its memory once it's been drawn.
+            imageBitmap.close();
         });
 
     }, [sample]);
@@ -39,8 +43,16 @@ export const RecordStep = ({ context, sessionData, onComplete, onBack }: RecordS
     const [countdown, setCountdown] = useState<number | null>(null);
     const [isCapturing, setIsCapturing] = useState(false);
     
+    // --- MEMORY LEAK FIX: Cleanup Logic for Timers ---
+    // Using a ref to store the timer ID ensures we can clear it reliably in the cleanup function.
+    const countdownTimerRef = useRef<number | null>(null);
+
     useEffect(() => {
-        if (countdown === null) return;
+        if (countdown === null) {
+            if (countdownTimerRef.current) clearTimeout(countdownTimerRef.current);
+            return;
+        }
+
         if (countdown <= 0) {
             setIsCapturing(true);
             addSample().then(success => {
@@ -50,8 +62,12 @@ export const RecordStep = ({ context, sessionData, onComplete, onBack }: RecordS
             setCountdown(null);
             return;
         }
-        const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-        return () => clearTimeout(timer);
+
+        countdownTimerRef.current = window.setTimeout(() => setCountdown(countdown - 1), 1000);
+
+        return () => {
+            if (countdownTimerRef.current) clearTimeout(countdownTimerRef.current);
+        };
     }, [countdown, addSample, pubsub]);
     
     const allSamplesRecorded = samples.length >= sessionData.samplesNeeded;
