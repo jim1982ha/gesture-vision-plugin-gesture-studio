@@ -3,6 +3,10 @@
   "pluginStudioDescription": "一个用于创建自定义手部和姿态手势的工具。",
   "studioCreateNew": "创建新的...",
   "studioCreateNewTooltip": "使用手势工作室创建一个新的手势",
+  "studioTabDefine": "设置",
+  "studioTabRecord": "录制",
+  "studioTabCalibrate": "校准",
+  "studioTabTest": "测试并保存",
   "studioStepDefineTitle": "第1步：定义手势",
   "studioStepRecordTitle": "第2步：录制样本",
   "studioStepTestTitle": "第3步：测试与优化",
@@ -14,11 +18,11 @@
   "studioGestureTypeHand": "手部手势",
   "studioGestureTypePose": "姿态手势",
   "studioSamplesToRecord": "要录制的样本数",
-  "studioConfirmAndStart": "下一步",
+  "studioConfirmAndStart": "开始录制",
   "studioResetSamples": "重置样本",
   "studioRecordSample": "录制样本 ({{count}}/{{needed}})",
   "studioCaptureSample": "正在录制 ({{countdown}}秒)",
-  "studioAnalyzeAndGenerate": "分析并生成",
+  "studioAnalyzeAndGenerate": "下一步：测试并保存",
   "studioSamplesLabel": "样本: {{captured}}/{{needed}}",
   "studioSaveGesture": "保存手势",
   "studioStartOver": "重新开始",
@@ -62,5 +66,7 @@
   "studioDynamicAnalysisPlaceholder": "动态手势由校准定义，而非统计分析。",
   "studioNotCalibrated": "未校准",
   "studioTwoPointsRequired": "请选择两个地标点以继续。",
-  "studioDistance": "距离"
+  "studioDistance": "距离",
+  "Points": "点位",
+  "studioGetStartedPrompt": "请定义您的新手势以开始。"
 }

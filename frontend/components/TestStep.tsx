@@ -1,59 +1,36 @@
+/* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/components/TestStep.tsx */
 import React, { useState, useEffect, useContext } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import { setIcon } from '#frontend/ui/helpers/ui-helpers.js';
 import { useStudioSession } from '../hooks/useStudioSession.js';
-import { useLiveTester } from '../hooks/useLiveTester.js';
 import { WEBSOCKET_EVENTS } from '#shared/index.js';
-import type { StudioSessionData } from '../GestureStudio.js';
-import type { TestResultPayload } from '#frontend/types/index.js';
+import type { StudioSessionData } from '../types.js';
 import type { FeatureExtractorResult } from '../utils/studio-utils.js';
 
 interface TestStepProps {
     analysisResult: FeatureExtractorResult | null;
-    sessionData: StudioSessionData;
+    sessionData: StudioSessionData | null;
+    generatedCode: string | null;
+    setGeneratedCode: (code: string | null) => void;
     onBack: () => void;
     onClose: () => void;
+    getLandmarkSnapshot?: () => Promise<unknown>; // Prop is optional as it's not used here, but passed by wrapper
 }
 
-const LiveTestDisplay = ({ testResult }: { testResult: TestResultPayload | null }) => {
+export const TestStep = ({ analysisResult, sessionData, generatedCode, setGeneratedCode, onBack, onClose }: TestStepProps) => {
     const context = useContext(AppContext);
-    if (!context) return null;
-    const { translate } = context.services.translationService;
-
-    if (!testResult) return null;
-    
-    const detectedText = testResult.detected ? translate("studioStatusDetected") : translate("studioStatusNotDetected");
-    const colorClass = testResult.detected ? 'text-success' : 'text-error';
-    const confidenceText = (testResult.confidence != null) ? `${(testResult.confidence * 100).toFixed(1)}%` : "-";
-
-    return (
-        <div id="live-test-display-content" className="p-1">
-            <div>{translate('studioLiveStatus')}: <strong className={colorClass}>{detectedText}</strong></div>
-            <div>{translate('studioLiveConfidence')}: <span>{confidenceText}</span></div>
-        </div>
-    );
-};
-
-export const TestStep = ({ analysisResult, sessionData, onBack, onClose }: TestStepProps) => {
-    const context = useContext(AppContext);
+    const [tolerance, setTolerance] = useState(sessionData?.creationType === 'static' ? 0.2 : 0.5);
     const { generateJsFileContent } = useStudioSession(sessionData);
-    const [generatedCode, setGeneratedCode] = useState<string | null>(null);
-    const { testResult, tolerance, updateTolerance } = useLiveTester(generatedCode, sessionData.type);
     
     useEffect(() => {
         if (analysisResult) {
             const code = generateJsFileContent(analysisResult, tolerance);
             setGeneratedCode(code);
         }
-    }, [analysisResult, tolerance, generateJsFileContent]);
+    }, [analysisResult, tolerance, generateJsFileContent, setGeneratedCode]);
 
-    useEffect(() => {
-        const liveDisplay = document.getElementById('live-test-display');
-        const isDynamic = sessionData?.creationType === 'dynamic';
-        if (liveDisplay) liveDisplay.style.display = isDynamic ? 'block' : 'none';
-    }, [sessionData?.creationType]);
-
-    if (!context) return null;
+    if (!context || !sessionData) return null;
+    
     const { translate } = context.services.translationService;
     const { webSocketService, pubsub } = context.services;
 
@@ -70,15 +47,14 @@ export const TestStep = ({ analysisResult, sessionData, onBack, onClose }: TestS
     };
 
     return (
-        <div className="h-full flex flex-col gap-3 justify-between">
-            <LiveTestDisplay testResult={testResult} />
+        <div id="test-step-container" className="h-full flex flex-col gap-3 justify-between">
             <div className="flex flex-col gap-3">
                 <div className="form-group !mb-0">
                     <label htmlFor="gestureToleranceSlider" className="form-label">{translate("studioToleranceLabel")}</label>
                     <div className="slider-group">
                         <output htmlFor="gestureToleranceSlider" className="slider-output">{Math.round(tolerance * 100)}%</output>
                         <div className="slider-container">
-                            <input type="range" id="gestureToleranceSlider" className="form-slider" min="0" max="1" step="0.05" value={tolerance} onChange={e => updateTolerance(parseFloat(e.target.value))} />
+                            <input type="range" id="gestureToleranceSlider" className="form-slider" min="0" max="1" step="0.05" value={tolerance} onChange={e => setTolerance(parseFloat(e.target.value))} />
                         </div>
                     </div>
                 </div>
@@ -101,12 +77,12 @@ export const TestStep = ({ analysisResult, sessionData, onBack, onClose }: TestS
                     </div>
                 </details>
             </div>
-            <div className="flex justify-between items-center mt-auto">
-                <button onClick={onBack} className="btn btn-secondary">
-                    <span ref={el => el && setIcon(el, 'UI_ONE')}></span>
+            <div className="flex justify-between items-center mt-auto pt-4">
+                <button id="test-step-back-button" onClick={onBack} className="btn btn-secondary">
+                    <span ref={el => el && setIcon(el, 'UI_UNDO')}></span>
                     <span>{translate("studioStartOver")}</span>
                 </button>
-                <button onClick={handleSave} className="btn btn-primary" disabled={!generatedCode}>
+                <button id="test-step-save-button" onClick={handleSave} className="btn btn-primary" disabled={!generatedCode}>
                     <span ref={el => el && setIcon(el, 'UI_SAVE')}></span>
                     <span>{translate("studioSaveGesture")}</span>
                 </button>

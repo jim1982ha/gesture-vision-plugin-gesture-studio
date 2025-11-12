@@ -3,6 +3,10 @@
   "pluginStudioDescription": "A tool to create custom hand and pose gestures.",
   "studioCreateNew": "Create...",
   "studioCreateNewTooltip": "Create a new gesture using the Gesture Studio",
+  "studioTabDefine": "Setup",
+  "studioTabRecord": "Record",
+  "studioTabCalibrate": "Calibrate",
+  "studioTabTest": "Test & Save",
   "studioStepDefineTitle": "Step 1: Define Gesture",
   "studioStepRecordTitle": "Step 2: Record Samples",
   "studioStepTestTitle": "Step 3: Test & Refine",
@@ -14,11 +18,11 @@
   "studioGestureTypeHand": "Hand Gesture",
   "studioGestureTypePose": "Pose Gesture",
   "studioSamplesToRecord": "Samples to Record",
-  "studioConfirmAndStart": "Next Step",
+  "studioConfirmAndStart": "Start Recording",
   "studioResetSamples": "Reset",
   "studioRecordSample": "Record ({{count}}/{{needed}})",
   "studioCaptureSample": "Recording ({{countdown}}s)",
-  "studioAnalyzeAndGenerate": "Analyze & Generate",
+  "studioAnalyzeAndGenerate": "Next: Test & Save",
   "studioSamplesLabel": "Samples: {{captured}}/{{needed}}",
   "studioSaveGesture": "Save Gesture",
   "studioStartOver": "Restart",
@@ -62,5 +66,7 @@
   "studioDynamicAnalysisPlaceholder": "Dynamic gestures are defined by calibration, not statistical analysis.",
   "studioNotCalibrated": "Not Calibrated",
   "studioTwoPointsRequired": "Please select two landmarks to continue.",
-  "studioDistance": "Distance"
+  "studioDistance": "Distance",
+  "Points": "Points",
+  "studioGetStartedPrompt": "Define your new gesture to begin."
 }

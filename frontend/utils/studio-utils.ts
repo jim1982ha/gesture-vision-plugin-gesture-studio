@@ -1,6 +1,6 @@
 /* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/utils/studio-utils.ts */
 import type { SnapshotData } from '#frontend/types/index.js';
-import type { GestureType, StudioSessionData } from '../GestureStudio.js';
+import type { GestureType, StudioSessionData } from '../types.js';
 import type { Landmark } from '@mediapipe/tasks-vision';
 
 const MIN_SAMPLES_FOR_STATISTICAL_RELEVANCE = 3;

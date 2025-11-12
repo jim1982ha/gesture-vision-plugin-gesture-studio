@@ -1,26 +1,27 @@
 /* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/style.css */
-#studio-video-placeholder,
-#landmark-selector-canvas-container,
-#studio-analysis-pre,
-#studio-generated-code-textarea,
-#gesture-studio-welcome-screen {
+
+/* Make the placeholder a positioned container for the video elements */
+#studio-video-placeholder {
+    @apply relative;
     background-color: hsl(var(--color-background));
 }
 
-#studio-controls-panel,
-.selection-card {
+#landmark-selector-canvas-container,
+#studio-analysis-pre,
+#studio-generated-code-textarea {
+    background-color: hsl(var(--color-background));
+}
+
+#studio-controls-panel {
     background-color: hsl(var(--color-surface));
-    border: 1px solid hsl(var(--color-border));
+    border-color: hsl(var(--color-border));
+}
+
+#studio-bottom-panel {
+    background-color: hsl(var(--color-surface));
 }
 
 #live-test-display {
-    background-color: hsl(var(--color-surface) / 0.8);
-    color: hsl(var(--color-text-primary));
-}
-
-#creation-type-selection-section strong,
-#studio-analysis-details,
-#studio-generated-code-details {
     color: hsl(var(--color-text-primary));
 }
 
@@ -34,9 +35,10 @@
     background-color: hsl(var(--color-background));
 }
 
-/* New styles for the selection cards on the welcome screen */
 .selection-card {
     @apply flex items-center gap-4 p-4 rounded-lg w-full max-w-md transition-all duration-200 ease-in-out cursor-pointer;
+    background-color: hsl(var(--color-surface));
+    border: 1px solid hsl(var(--color-border));
     box-shadow: var(--shadow-depth-sm);
 }
 
@@ -44,4 +46,15 @@
     border-color: hsl(var(--color-primary));
     transform: translateY(-2px);
     box-shadow: var(--shadow-depth-md);
+}
+
+.selection-card strong {
+    color: hsl(var(--color-text-primary));
+}
+
+/* Make thumbnail container scrollable horizontally */
+#record-step-samples-container {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
 }

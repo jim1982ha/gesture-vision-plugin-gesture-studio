@@ -3,6 +3,10 @@
   "pluginStudioDescription": "Un outil pour créer des gestes de main et de pose personnalisés.",
   "studioCreateNew": "Créer...",
   "studioCreateNewTooltip": "Créer un nouveau geste en utilisant le Studio de Gestes",
+  "studioTabDefine": "Configuration",
+  "studioTabRecord": "Enregistrer",
+  "studioTabCalibrate": "Calibrer",
+  "studioTabTest": "Tester & Sauvegarder",
   "studioStepDefineTitle": "Étape 1 : Définir le Geste",
   "studioStepRecordTitle": "Étape 2 : Enregistrer les Échantillons",
   "studioStepTestTitle": "Étape 3 : Tester & Affiner",
@@ -14,11 +18,11 @@
   "studioGestureTypeHand": "Geste de Main",
   "studioGestureTypePose": "Geste de Pose",
   "studioSamplesToRecord": "Échantillons à Enregistrer",
-  "studioConfirmAndStart": "Étape Suivante",
+  "studioConfirmAndStart": "Démarrer l'Enregistrement",
   "studioResetSamples": "Réinitialiser",
   "studioRecordSample": "Capture ({{count}}/{{needed}})",
   "studioCaptureSample": "Enregistrement ({{countdown}}s)",
-  "studioAnalyzeAndGenerate": "Analyser & Générer",
+  "studioAnalyzeAndGenerate": "Suivant : Tester & Sauvegarder",
   "studioSamplesLabel": "Échantillons: {{captured}}/{{needed}}",
   "studioSaveGesture": "Sauvegarder Geste",
   "studioStartOver": "Recommencer",
@@ -62,5 +66,7 @@
   "studioDynamicAnalysisPlaceholder": "Les gestes dynamiques sont définis par calibrage, et non par analyse statistique.",
   "studioNotCalibrated": "Non calibré",
   "studioTwoPointsRequired": "Veuillez sélectionner deux points de repère pour continuer.",
-  "studioDistance": "Distance"
+  "studioDistance": "Distance",
+  "Points": "Points",
+  "studioGetStartedPrompt": "Définissez votre nouveau geste pour commencer."
 }

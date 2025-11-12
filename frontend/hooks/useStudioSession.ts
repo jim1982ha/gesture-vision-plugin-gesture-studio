@@ -1,7 +1,8 @@
+/* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/hooks/useStudioSession.ts */
 import { useState, useCallback, useRef, useContext } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import { FeatureExtractor, type FeatureExtractorResult } from '../utils/studio-utils.js';
-import type { StudioSessionData } from '../GestureStudio.js';
+import type { StudioSessionData } from '../types.js';
 import type { SnapshotData } from '#frontend/types/index.js';
 import type { Landmark } from '@mediapipe/tasks-vision';
 
@@ -9,27 +10,19 @@ export const useStudioSession = (sessionData: StudioSessionData | null) => {
     const context = useContext(AppContext);
     const [samples, setSamples] = useState<SnapshotData[]>([]);
     const featureExtractorRef = useRef(sessionData ? new FeatureExtractor(sessionData.type) : null);
+    const [focusPoints, setFocusPoints] = useState<number[]>([]);
 
     const [dynLandmarks, setDynLandmarks] = useState<number[]>([]);
     const [minDistance, setMinDistance] = useState<number | null>(null);
     const [maxDistance, setMaxDistance] = useState<number | null>(null);
 
-    const addSample = useCallback(async () => {
-        if (!context?.services.cameraService) return false;
-        const snapshot = await context.services.cameraService.getLandmarkSnapshot();
-        const isMirrored = context.services.cameraService.getCameraManager().isMirrored();
+    const addSample = useCallback((snapshot: SnapshotData) => {
+        setSamples(prev => [...prev, { ...snapshot, isMirrored: true }]);
+    }, []);
 
-        if (snapshot && snapshot.landmarks2d && snapshot.imageData) {
-            setSamples(prev => [...prev, { ...snapshot, isMirrored }]);
-            return true;
-        }
-        return false;
-    }, [context]);
-
-    const calibrateDistance = useCallback(async (type: 'min' | 'max') => {
-        if (!context?.services.cameraService || dynLandmarks.length !== 2 || !sessionData) return;
+    const calibrateDistance = useCallback((type: 'min' | 'max', snapshot: SnapshotData) => {
+        if (dynLandmarks.length !== 2 || !sessionData) return;
         try {
-            const snapshot = await context.services.cameraService.getLandmarkSnapshot();
             const landmarks = snapshot?.landmarks2d;
             if (!landmarks || landmarks.length < 2) throw new Error("Could not get landmarks for calibration.");
             
@@ -55,7 +48,7 @@ export const useStudioSession = (sessionData: StudioSessionData | null) => {
             else setMaxDistance(distanceInCm);
         } catch (e) {
             console.error(`Calibration failed for type ${type}:`, e);
-            context.services.pubsub.publish('ui:showError', { messageKey: "toastSampleCaptureFailedGeneric" });
+            context?.services.pubsub.publish('ui:showError', { messageKey: "toastSampleCaptureFailedGeneric" });
         }
     }, [context, dynLandmarks, sessionData]);
 
@@ -64,12 +57,13 @@ export const useStudioSession = (sessionData: StudioSessionData | null) => {
         setDynLandmarks([]);
         setMinDistance(null);
         setMaxDistance(null);
+        setFocusPoints([]);
     }, []);
 
     const analyzeSamples = useCallback(() => {
         if (!featureExtractorRef.current) return null;
-        return featureExtractorRef.current.extract(samples);
-    }, [samples]);
+        return featureExtractorRef.current.extract(samples, new Set(focusPoints));
+    }, [samples, focusPoints]);
     
     const generateJsFileContent = useCallback((analysisResult: FeatureExtractorResult | null, tolerance: number): string | null => {
         if (!sessionData || !featureExtractorRef.current) return null;
@@ -95,20 +89,11 @@ export const useStudioSession = (sessionData: StudioSessionData | null) => {
             };
             return featureExtractorRef.current.generateStaticGestureJsFileContent(staticDefinition);
         }
-    }, [sessionData, dynLandmarks, minDistance, maxDistance]);
+    }, [sessionData, dynLandmarks, minDistance, maxDistance, focusPoints]);
 
     return {
-        samples,
-        addSample,
-        resetSamples,
-        analyzeSamples,
-        generateJsFileContent,
-        dynLandmarks,
-        setDynLandmarks,
-        minDistance,
-        setMinDistance,
-        maxDistance,
-        setMaxDistance,
-        calibrateDistance
+        samples, addSample, resetSamples, analyzeSamples, generateJsFileContent,
+        dynLandmarks, setDynLandmarks, minDistance, setMinDistance, maxDistance, setMaxDistance, calibrateDistance,
+        focusPoints, setFocusPoints,
     };
 };

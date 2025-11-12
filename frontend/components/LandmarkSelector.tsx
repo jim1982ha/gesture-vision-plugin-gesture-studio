@@ -34,26 +34,34 @@ export const LandmarkSelector = ({ show, onClose, onConfirm, sample, selectionMo
         
         const { imageData, landmarks2d, isMirrored } = sample;
         
-        // --- MEMORY LEAK FIX: Explicit Cleanup for ImageBitmap ---
         const imageBitmapPromise = createImageBitmap(imageData);
         imageBitmapPromise.then(imageBitmap => {
             const imgAspectRatio = imageData.width / imageData.height;
             const parent = canvas.parentElement!;
-            const canvasAspectRatio = parent.clientWidth / parent.clientHeight;
+            const parentRect = parent.getBoundingClientRect();
+            const canvasAspectRatio = parentRect.width / parentRect.height;
+            
+            // Calculate size to fit container while maintaining aspect ratio
             if (imgAspectRatio > canvasAspectRatio) {
-                canvas.width = parent.clientWidth;
+                canvas.width = parentRect.width;
                 canvas.height = canvas.width / imgAspectRatio;
             } else {
-                canvas.height = parent.clientHeight;
+                canvas.height = parentRect.height;
                 canvas.width = canvas.height * imgAspectRatio;
             }
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // The snapshot from the worker is already non-mirrored/corrected relative to the video feed.
+            // If the original stream was mirrored (isMirrored = true), we draw it mirrored
+            // to match the expectation from the video element's styling.
             if (isMirrored) { ctx.save(); ctx.scale(-1, 1); ctx.translate(-canvas.width, 0); }
             ctx.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
             if (isMirrored) { ctx.restore(); }
             
             landmarks2d?.forEach((lm, index) => {
+                // Landmarker output landmarks are normalized [0, 1].
+                // The mirroring is applied here to match the visual flip if 'isMirrored' is true.
                 const x = (isMirrored ? 1 - lm.x : lm.x) * canvas.width;
                 const y = lm.y * canvas.height;
                 ctx.beginPath();
@@ -64,22 +72,22 @@ export const LandmarkSelector = ({ show, onClose, onConfirm, sample, selectionMo
                 ctx.fill();
             });
 
-            // Close the ImageBitmap to release memory after it's been used for drawing.
             imageBitmap.close();
-        });
+        }).catch(err => console.error("Error drawing landmark selector canvas:", err));
     }, [sample, selectedIndices, hoveredIndex]);
 
     const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-        if (!sample.landmarks2d) return;
-        const rect = canvasRef.current!.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        if (!canvasRef.current || !sample.landmarks2d) return;
+        const rect = canvasRef.current.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
         let foundIndex = -1;
         for (let i = 0; i < sample.landmarks2d.length; i++) {
             const lm = sample.landmarks2d[i];
-            const lmX = (sample.isMirrored ? 1 - lm.x : lm.x) * canvasRef.current!.width;
-            const lmY = lm.y * canvasRef.current!.height;
-            if (Math.sqrt((x - lmX) ** 2 + (y - lmY) ** 2) < LANDMARK_RADIUS + 2) {
+            // Apply canvas-based mirroring to the landmark position
+            const lmX = (sample.isMirrored ? 1 - lm.x : lm.x) * canvasRef.current.width;
+            const lmY = lm.y * canvasRef.current.height;
+            if (Math.sqrt((mouseX - lmX) ** 2 + (mouseY - lmY) ** 2) < LANDMARK_RADIUS + 2) {
                 foundIndex = i;
                 break;
             }
@@ -105,7 +113,7 @@ export const LandmarkSelector = ({ show, onClose, onConfirm, sample, selectionMo
     const { translate } = context.services.translationService;
 
     return (
-        <div className="modal visible" role="dialog">
+        <div id="landmarkSelectorModal" className="modal visible" role="dialog">
             <div className="modal-content !max-w-3xl h-[90vh]">
                 <div className="modal-header">
                     <span className="header-title">{translate("landmarkSelectorTitle")}</span>
@@ -113,23 +121,24 @@ export const LandmarkSelector = ({ show, onClose, onConfirm, sample, selectionMo
                 </div>
                 <div className="modal-scrollable-content !p-0">
                     <div id="landmark-selector-canvas-container" className="w-full h-full flex justify-center items-center overflow-hidden relative">
+                        {/* We use a max-w-full and max-h-full on the canvas to ensure it fits its parent container */}
                         <canvas ref={canvasRef} onMouseMove={handleMouseMove} onClick={handleClick} className="max-w-full max-h-full object-contain cursor-pointer"></canvas>
                     </div>
                 </div>
                 <div className="modal-actions !justify-between">
                     <div className="flex gap-2">
                         {selectionMode === 'multiple' && <>
-                            <button onClick={() => setSelectedIndices(new Set(Array.from({ length: sample.landmarks2d!.length }, (_, i) => i)))} className="btn btn-secondary">
+                            <button id="landmark-select-all-button" onClick={() => setSelectedIndices(new Set(Array.from({ length: sample.landmarks2d!.length }, (_, i) => i)))} className="btn btn-secondary">
                                 <span ref={el => el && setIcon(el, 'UI_LIST_CHECK')}></span>
                                 <span>{translate("selectAll")}</span>
                             </button>
-                            <button onClick={() => setSelectedIndices(new Set())} className="btn btn-secondary">
+                            <button id="landmark-deselect-all-button" onClick={() => setSelectedIndices(new Set())} className="btn btn-secondary">
                                 <span ref={el => el && setIcon(el, 'UI_DELETE_SWEEP')}></span>
                                 <span>{translate("deselectAll")}</span>
                             </button>
                         </>}
                     </div>
-                    <button onClick={() => onConfirm(selectedIndices)} className="btn btn-primary">
+                    <button id="landmark-confirm-button" onClick={() => onConfirm(selectedIndices)} className="btn btn-primary" disabled={selectionMode === 'two_points' && selectedIndices.size !== 2}>
                         <span ref={el => el && setIcon(el, 'UI_CONFIRM')}></span>
                         <span>{translate("confirmSelection")}</span>
                     </button>
